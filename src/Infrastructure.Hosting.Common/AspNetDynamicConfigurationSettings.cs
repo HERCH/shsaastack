@@ -401,5 +401,42 @@ public class AspNetDynamicConfigurationSettings : IConfigurationSettings
         }
 
         public bool IsConfigured => _tenancy.Current.HasValue();
+
+        public void BindSection<T>(string sectionKey, T instanceToBind)
+            where T : class
+        {
+            if (instanceToBind == null) throw new ArgumentNullException(nameof(instanceToBind));
+
+            var settings = _tenancy.Settings;
+            if (string.IsNullOrWhiteSpace(sectionKey))
+            {
+                throw new NotSupportedException(
+                    "Binding the entire tenant settings collection to a complex object without a sectionKey is not supported.");
+            }
+
+            if (settings.TryGetValue(sectionKey, out var settingValueWrapper) && settingValueWrapper.Value != null)
+            {
+                var value = settingValueWrapper.Value;
+                if (value is string jsonString)
+                {
+                    try
+                    {
+                        throw new NotSupportedException(
+                            $"Binding section '{sectionKey}' from tenant settings to type '{typeof(T).Name}' from a raw string requires JSON deserialization and population of an existing instance, which needs specific handling.");
+                    }
+                    catch (System.Text.Json.JsonException jsonEx)
+                    {
+                        throw new InvalidOperationException(
+                            $"El setting del inquilino '{sectionKey}' parece ser JSON pero no pudo ser deserializado a '{typeof(T).Name}'.",
+                            jsonEx);
+                    }
+                }
+                else
+                {
+                    throw new NotSupportedException(
+                        $"Binding section '{sectionKey}' from tenant settings to a complex object of type '{typeof(T).Name}' is not supported when the stored value is not a JSON string.");
+                }
+            }
+        }
     }
 }
