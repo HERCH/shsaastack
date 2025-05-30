@@ -233,6 +233,12 @@ public class MultiTenancySpec
                 return null!;
             }
 
+            public void BindSection<T>(string sectionKey, T instanceToBind)
+                where T : class
+            {
+                Platform.BindSection(sectionKey, instanceToBind);
+            }
+
             public bool IsConfigured => true;
 
             public ISettings Platform => this;
