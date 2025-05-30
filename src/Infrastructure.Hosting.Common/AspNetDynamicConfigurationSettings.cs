@@ -108,6 +108,11 @@ public class AspNetDynamicConfigurationSettings : IConfigurationSettings
     }
 
     bool ISettings.IsConfigured => true;
+    
+    public void BindSection<T>(string sectionKey, T instanceToBind) where T : class
+    {
+        Platform.BindSection(sectionKey, instanceToBind);
+    }
 
     public ISettings Platform => _platform;
 
