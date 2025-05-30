@@ -575,6 +575,12 @@ public static class HostExtensions
             }
 #elif HOSTEDONPREMISES
             // EXTEND: Add your production stores here
+            services.AddForPlatform<IDataStore, IEventStore, SqlServerStore>(c =>
+                SqlServerStore.Create(c.GetRequiredService<IRecorder>(),
+                    SqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
+            services.AddForPlatform<IBlobStore>(c =>
+                SqlServerBlobStore.Create(c.GetRequiredService<IRecorder>(),
+                    SqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
             services.AddForPlatform<IQueueStore>(c => RabbitMqQueueStore.Create(
                     c.GetRequiredService<IMessagePublisher>(),
                     c.GetRequiredService<ITopologyManager>(),
@@ -593,6 +599,12 @@ public static class HostExtensions
 
             if (isMultiTenanted)
             {
+                services.AddPerHttpRequest<IDataStore, IEventStore, SqlServerStore>(c =>
+                    SqlServerStore.Create(c.GetRequiredService<IRecorder>(),
+                        SqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
+                services.AddPerHttpRequest<IBlobStore>(c =>
+                    SqlServerBlobStore.Create(c.GetRequiredService<IRecorder>(),
+                        SqlServerStoreOptions.Credentials(c.GetRequiredService<IConfigurationSettings>())));
                 // IQueueStore con RabbitMqQueueStore (Scoped)
                 services.AddPerHttpRequest<IQueueStore>(c =>
                     RabbitMqQueueStore.Create(
@@ -615,6 +627,13 @@ public static class HostExtensions
             }
             else
             {
+                services.AddSingleton<IDataStore, IEventStore, SqlServerStore>(c =>
+                    SqlServerStore.Create(c.GetRequiredService<IRecorder>(),
+                        SqlServerStoreOptions.Credentials(
+                            c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
+                services.AddSingleton<IBlobStore>(c =>
+                    SqlServerBlobStore.Create(c.GetRequiredService<IRecorder>(),
+                        SqlServerStoreOptions.Credentials(c.GetRequiredService<IConfigurationSettings>())));
                 // IQueueStore con RabbitMqQueueStore (Singleton) - Esto debería ser seguro
                 services.AddSingleton<IQueueStore>(c =>
                     RabbitMqQueueStore.Create(
