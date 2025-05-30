@@ -54,6 +54,13 @@ using Microsoft.ApplicationInsights.Extensibility;
 using Amazon.XRay.Recorder.Core;
 using Amazon.XRay.Recorder.Handlers.AwsSdk;
 using Infrastructure.Persistence.Common.ApplicationServices;
+#elif  HOSTEDONPREMISES
+using Infrastructure.Broker.RabbitMq.Configuration;
+using Infrastructure.Broker.RabbitMq.Publishing;
+using Infrastructure.Broker.RabbitMq.Topology;
+using Infrastructure.External.Persistence.OnPremises.ApplicationServices.RabbitMq;
+using Microsoft.Extensions.Options;
+using Infrastructure.External.Persistence.OnPremises.ApplicationServices;
 #endif
 #endif
 
@@ -604,6 +611,64 @@ public static class HostExtensions
             {
                 services.AddSingleton<IDataStore, IEventStore, IBlobStore, IQueueStore, IMessageBusStore, NoOpStore>(_ =>
                     NoOpStore.Instance);
+            }
+#elif HOSTEDONPREMISES
+            // EXTEND: Add your production stores here
+            services.AddForPlatform<IQueueStore>(c => RabbitMqQueueStore.Create(
+                    c.GetRequiredService<IMessagePublisher>(),
+                    c.GetRequiredService<ITopologyManager>(),
+                    c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
+                    c.GetRequiredService<IRecorder>(),
+                    c.GetRequiredService<ILoggerFactory>()
+                ));
+            services.AddForPlatform<IMessageBusStore>(c =>
+                RabbitMqMessageBusStore.Create(
+                    c.GetRequiredService<IMessagePublisher>(),
+                    c.GetRequiredService<ITopologyManager>(),
+                    c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
+                    c.GetRequiredService<IRecorder>(),
+                    c.GetRequiredService<ILoggerFactory>()
+                ));
+
+            if (isMultiTenanted)
+            {
+                services.AddPerHttpRequest<IQueueStore>(c =>
+                    RabbitMqQueueStore.Create(
+                        c.GetRequiredService<IMessagePublisher>(),
+                        c.GetRequiredService<ITopologyManager>(),
+                        c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
+                        c.GetRequiredService<IRecorder>(),
+                        c.GetRequiredService<ILoggerFactory>()
+                    ));
+        
+                services.AddPerHttpRequest<IMessageBusStore>(c =>
+                    RabbitMqMessageBusStore.Create(
+                        c.GetRequiredService<IMessagePublisher>(),
+                        c.GetRequiredService<ITopologyManager>(),
+                        c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
+                        c.GetRequiredService<IRecorder>(),
+                        c.GetRequiredService<ILoggerFactory>()
+                    ));
+            }
+            else
+            {
+                services.AddSingleton<IQueueStore>(c =>
+                    RabbitMqQueueStore.Create(
+                        c.GetRequiredService<IMessagePublisher>(),
+                        c.GetRequiredService<ITopologyManager>(),
+                        c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
+                        c.GetRequiredService<IRecorder>(),
+                        c.GetRequiredService<ILoggerFactory>()
+                    ));
+        
+                services.AddSingleton<IMessageBusStore>(c =>
+                    RabbitMqMessageBusStore.Create(
+                        c.GetRequiredService<IMessagePublisher>(),
+                        c.GetRequiredService<ITopologyManager>(),
+                        c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
+                        c.GetRequiredService<IRecorder>(),
+                        c.GetRequiredService<ILoggerFactory>()
+                    ));
             }
 #endif
 #endif

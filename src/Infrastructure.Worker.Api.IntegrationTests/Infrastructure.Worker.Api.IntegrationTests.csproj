@@ -9,6 +9,7 @@
         <ProjectReference Include="..\AzureFunctions.Api.WorkerHost\AzureFunctions.Api.WorkerHost.csproj" />
         <ProjectReference Include="..\Infrastructure.External.Persistence.AWS\Infrastructure.External.Persistence.AWS.csproj" />
         <ProjectReference Include="..\Infrastructure.External.Persistence.Azure\Infrastructure.External.Persistence.Azure.csproj" />
+        <ProjectReference Include="..\Infrastructure.External.Persistence.OnPremises\Infrastructure.External.Persistence.OnPremises.csproj" />
         <ProjectReference Include="..\IntegrationTesting.Persistence.Common\IntegrationTesting.Persistence.Common.csproj" />
     </ItemGroup>
 
