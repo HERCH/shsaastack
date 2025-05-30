@@ -1,7 +1,8 @@
 using System.Text.Json;
 using Application.Interfaces.Services;
+using Application.Persistence.Interfaces; 
 using Application.Persistence.Shared.ReadModels;
-using Common;
+using Common; 
 using Common.Configuration;
 using Common.FeatureFlags;
 using Common.Recording;
@@ -11,11 +12,14 @@ using Infrastructure.Broker.RabbitMq.Extensions;
 using Infrastructure.Broker.RabbitMq.Topology;
 using Infrastructure.Common.Recording;
 using Infrastructure.Hosting.Common;
-using Infrastructure.Web.Api.Common.Clients;
-using Infrastructure.Web.Api.Interfaces.Clients;
-using Infrastructure.Workers.Api;
-using Infrastructure.Workers.Api.Workers;
-using OnPremises.Api.WorkerHost;
+using Infrastructure.Interfaces; 
+using Infrastructure.Web.Api.Common.Clients; 
+using Infrastructure.Web.Api.Interfaces.Clients; 
+using Infrastructure.Workers.Api; 
+using Infrastructure.Workers.Api.Workers; 
+using OnPremises.Api.WorkerHost; 
+
+
 
 public class Program
 {
@@ -28,9 +32,9 @@ public class Program
         Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((hostingContext, config) =>
             {
-                // Asegúrate de que appsettings.json se carga, y opcionalmente appsettings.{Environment}.json
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-                config.AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+                config.AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json",
+                    optional: true, reloadOnChange: true);
                 config.AddEnvironmentVariables();
                 if (args != null)
                 {
@@ -42,137 +46,195 @@ public class Program
                 logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
                 logging.AddConsole();
                 logging.AddDebug();
-                // Considera añadir Application Insights u otro proveedor de logging aquí si es necesario
+                
+                
             })
             .ConfigureServices((hostContext, services) =>
             {
                 IConfiguration configuration = hostContext.Configuration;
+                var logger =
+                    services.BuildServiceProvider()
+                        .GetRequiredService<ILogger<Program>>(); 
 
-                // --- 1. Registrar Configuración y Servicios Comunes (Adaptado de tu HostExtensions) ---
-                services.AddHttpClient();
-                services.AddSingleton<IConfigurationSettings>(new AspNetDynamicConfigurationSettings(configuration));
-                services.AddSingleton<IHostSettings, HostSettings>();
-                services.AddSingleton(JsonSerializerOptions.Default);
                 
-                // FeatureFlags, CrashReporter, Recorder (adapta según tus necesidades)
+                services.AddHttpClient();
+                
+                services.AddSingleton<IConfigurationSettings>(provider =>
+                    new AspNetDynamicConfigurationSettings(
+                        provider.GetRequiredService<IConfiguration>(),
+                        provider.GetService<ITenancyContext>() 
+                    ));
+                
+                services.AddSingleton<IHostSettings>(provider =>
+                    new HostSettings(provider.GetRequiredService<IConfigurationSettings>()));
+                services.AddSingleton(JsonSerializerOptions.Default); 
                 services.AddSingleton<IFeatureFlags, EmptyFeatureFlags>();
-                services.AddSingleton<ICrashReporter>(new NoOpCrashReporter());
+                services.AddSingleton<ICrashReporter, NoOpCrashReporter>(); 
                 services.AddSingleton<IRecorder>(c =>
-                    new CrashTraceOnlyRecorder("RabbitMQ.WorkerHost", c.GetRequiredService<ILoggerFactory>(),
+                    new CrashTraceOnlyRecorder("OnPremises.Api.WorkerHost", c.GetRequiredService<ILoggerFactory>(),
                         c.GetRequiredService<ICrashReporter>()));
-
-                // Fábrica de Clientes API (si tus RelayWorkers la usan)
                 services.AddSingleton<IEnvironmentVariables, EnvironmentVariables>();
                 services.AddSingleton<IServiceClientFactory>(c =>
-                    new InterHostServiceClientFactory(c.GetRequiredService<IHttpClientFactory>(),
-                        c.GetRequiredService<JsonSerializerOptions>(), c.GetRequiredService<IHostSettings>()));
+                    new InterHostServiceClientFactory(
+                        c.GetRequiredService<IHttpClientFactory>(),
+                        c.GetRequiredService<JsonSerializerOptions>(),
+                        c.GetRequiredService<IHostSettings>()
+                    ));
 
+                
+                services.AddRabbitMqInfrastructure(configuration, RabbitMqOptions.SectionName);
 
-                // --- 2. Registrar Infraestructura de RabbitMQ ---
-                services.AddRabbitMqInfrastructure(configuration, RabbitMqOptions.SectionName, jsonOptions =>
-                {
-                    // Personaliza JsonSerializerOptions para el broker si es necesario
-                    // jsonOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                });
-
-                // --- 3. Registrar Servicio de Circuit Breaker ---
-                // Asume que tienes una implementación (InMemory o Distribuida)
+                
                 services.AddSingleton<IGenericCircuitBreakerStateService, InMemoryCircuitBreakerStateService>();
 
-
-                // --- 4. Registrar tus Relay Workers Concretos ---
-                // Estos son los que hacen el trabajo de relay a tus APIs internas.
-                // Asegúrate de que estas clases estén definidas y sean accesibles.
+                
                 services.AddTransient<IQueueMonitoringApiRelayWorker<AuditMessage>, DeliverAuditRelayWorker>();
-                // services.AddTransient<IQueueMonitoringApiRelayWorker<UsageMessage>, DeliverUsageRelayWorker>();
-                // services.AddTransient<IQueueMonitoringApiRelayWorker<EmailMessage>, SendEmailRelayWorker>();
-                // services.AddTransient<IQueueMonitoringApiRelayWorker<SmsMessage>, SendSmsRelayWorker>();
-                // services.AddTransient<IQueueMonitoringApiRelayWorker<ProvisioningMessage>, DeliverProvisioningRelayWorker>();
-                services.AddTransient<IMessageBusMonitoringApiRelayWorker<DomainEventingMessage>, DeliverDomainEventingRelayWorker>();
-                // NOTA: El ciclo de vida (Transient, Scoped, Singleton) de tus RelayWorkers
-                // dependerá de sus propias dependencias y si tienen estado. Transient es a menudo seguro.
+                services.AddTransient<IQueueMonitoringApiRelayWorker<UsageMessage>, DeliverUsageRelayWorker>();
+                services.AddTransient<IQueueMonitoringApiRelayWorker<EmailMessage>, SendEmailRelayWorker>();
+                services.AddTransient<IQueueMonitoringApiRelayWorker<SmsMessage>, SendSmsRelayWorker>();
+                services
+                    .AddTransient<IQueueMonitoringApiRelayWorker<ProvisioningMessage>,
+                        DeliverProvisioningRelayWorker>();
+                services
+                    .AddTransient<IMessageBusMonitoringApiRelayWorker<DomainEventingMessage>,
+                        DeliverDomainEventingRelayWorker>();
 
+                
+                var rabbitMqConfigSection = configuration.GetSection(RabbitMqOptions.SectionName);
 
-                // --- 5. Registrar los RabbitMqMessageListener como HostedServices ---
-                // Necesitarás uno por cada tipo de mensaje/cola que quieras procesar.
-                var rabbitMqConfig = configuration.GetSection(RabbitMqOptions.SectionName);
+                
+                RegisterQueueListener<AuditMessage>(services, rabbitMqConfigSection, "Queues:Audits",
+                    "DefaultWorkQueuePolicy", logger);
+                RegisterQueueListener<UsageMessage>(services, rabbitMqConfigSection, "Queues:Usages",
+                    "DefaultWorkQueuePolicy", logger);
+                RegisterQueueListener<EmailMessage>(services, rabbitMqConfigSection, "Queues:Emails",
+                    "DefaultWorkQueuePolicy", logger);
+                RegisterQueueListener<SmsMessage>(services, rabbitMqConfigSection, "Queues:Smses",
+                    "DefaultWorkQueuePolicy", logger); 
+                RegisterQueueListener<ProvisioningMessage>(services, rabbitMqConfigSection, "Queues:Provisioning",
+                    "DefaultWorkQueuePolicy", logger);
 
-                // Ejemplo para AuditMessage (escuchando una cola simple)
-                string auditQueue = rabbitMqConfig.GetValue<string>("Queues:Audits"); // Nombre desde appsettings.json
-                if (!string.IsNullOrWhiteSpace(auditQueue))
+                
+                var domainEventBindingKeys = new[]
                 {
-                    services.AddHostedService(provider =>
-                        new RabbitMqMessageListener<AuditMessage>(
-                            provider.GetRequiredService<ILoggerFactory>(), // Para el logger del listener
-                            provider.GetRequiredService<IRabbitMqChannelProvider>(),
-                            provider.GetRequiredService<ITopologyManager>(),
-                            provider.GetRequiredService<IQueueMonitoringApiRelayWorker<AuditMessage>>(), // El worker específico
-                            provider.GetRequiredService<IConfigurationSettings>(), // Para config de reintentos, etc.
-                            provider.GetRequiredService<IRecorder>(),
-                            provider.GetRequiredService<JsonSerializerOptions>(), // O IMessageSerializer
-                            provider.GetRequiredService<IGenericCircuitBreakerStateService>(),
-                            new ListenerQueueConfiguration // Configuración específica del listener
-                            {
-                                QueueName = auditQueue,
-                                ListenerId = $"AuditListener-{auditQueue}",
-                                RetryPolicyName = "DefaultWorkQueuePolicy", // Aplicar la política definida
-                                MainWorkExchangeName = "", // Asumiendo que 'company_audits_queue' está bindeada al default exchange
-                                MainWorkRoutingKey = auditQueue, // Routing key es el nombre de la cola para el default exchange
-                                DeclareQueueOptions = new QueueDeclarationOptions // Configuración para la cola principal
+                    "DomainEvents_ApiHost1_EndUsers",
+                    "DomainEvents_ApiHost1_Organizations",
+                    "DomainEvents_ApiHost1_Subscriptions",
+                    "DomainEvents_ApiHost1_UserProfiles"
+                };
+
+                string domainEventsExchangeConfigKey = "Exchanges:DomainEventsTopic";
+                string domainEventsExchangeName =
+                    rabbitMqConfigSection.GetValue<string>($"{domainEventsExchangeConfigKey}:Name");
+                string domainEventsExchangeType =
+                    rabbitMqConfigSection.GetValue<string>($"{domainEventsExchangeConfigKey}:Type");
+
+                if (string.IsNullOrWhiteSpace(domainEventsExchangeName))
+                {
+                    logger.LogCritical(
+                        "Nombre del Exchange de Eventos de Dominio no configurado en '{ConfigKey}:Name'. No se iniciarán listeners de eventos de dominio.",
+                        domainEventsExchangeConfigKey);
+                }
+                else
+                {
+                    foreach (var bindingKeyPrefix in domainEventBindingKeys)
+                    {
+                        string fullBindingConfigKey = $"Bindings:{bindingKeyPrefix}";
+                        string queueConfigPath =
+                            rabbitMqConfigSection.GetValue<string>($"{fullBindingConfigKey}:QueueConfigKey");
+                        string listenerQueueName = rabbitMqConfigSection.GetValue<string>(queueConfigPath);
+                        string routingKey =
+                            rabbitMqConfigSection.GetValue<string>($"{fullBindingConfigKey}:RoutingKey");
+                        string subscriptionName =
+                            rabbitMqConfigSection.GetValue<string>($"{fullBindingConfigKey}:SubscriptionName");
+
+                        if (string.IsNullOrWhiteSpace(listenerQueueName) || string.IsNullOrWhiteSpace(routingKey)
+                                                                         || string.IsNullOrWhiteSpace(subscriptionName))
+                        {
+                            logger.LogWarning(
+                                "Configuración incompleta para el binding '{BindingKeyPrefix}' (queue: '{QueuePath}', rk: '{RoutingKey}', subName: '{SubName}'). Listener no iniciado.",
+                                bindingKeyPrefix, queueConfigPath, routingKey, subscriptionName);
+                            continue;
+                        }
+
+                        services.AddHostedService(provider =>
+                            new RabbitMqMessageListener<DomainEventingMessage>(
+                                provider.GetRequiredService<ILoggerFactory>(),
+                                provider.GetRequiredService<IRabbitMqChannelProvider>(),
+                                provider.GetRequiredService<ITopologyManager>(),
+                                provider
+                                    .GetRequiredService<IMessageBusMonitoringApiRelayWorker<DomainEventingMessage>>(),
+                                provider.GetRequiredService<IConfigurationSettings>(),
+                                provider.GetRequiredService<IRecorder>(),
+                                provider.GetRequiredService<JsonSerializerOptions>(),
+                                provider.GetRequiredService<IGenericCircuitBreakerStateService>(),
+                                new ListenerQueueConfiguration
                                 {
-                                    Durable = true,
-                                    // El DeadLettering aquí configurado será para el DLQ FINAL después de todos los reintentos
-                                    DeadLettering = new DeadLetterOptions 
-                                    { 
-                                        DeclareDeadLetterQueue = true 
-                                        // Nombres para DLX/DLQ final se tomarán de la política o convención si no se especifican aquí
-                                    } 
+                                    QueueName = listenerQueueName,
+                                    ListenerId = $"DomainEventRelay-{subscriptionName}",
+                                    DeclareQueueOptions = new QueueDeclarationOptions
+                                    {
+                                        Durable = true,
+                                        DeadLettering = new DeadLetterOptions { DeclareDeadLetterQueue = true }
+                                    },
+                                    DeclareExchangeOptions = new ExchangeDeclarationOptions
+                                    {
+                                        Name = domainEventsExchangeName,
+                                        Type = domainEventsExchangeType ?? "topic",
+                                        Durable = true
+                                    },
+                                    BindToExchange = true,
+                                    ExchangeName = domainEventsExchangeName,
+                                    RoutingKey = routingKey,
+                                    RetryPolicyName = "DomainEventsPolicy", 
+                                    MainWorkExchangeName = domainEventsExchangeName, 
+                                    MainWorkRoutingKey = routingKey, 
+                                    SubscriberHostName = "ApiHost1", 
+                                    SubscriptionName = subscriptionName
                                 }
-                            }
-                        ));
+                            ));
+                    }
                 }
-
-                // Ejemplo para DomainEventingMessage (escuchando una "suscripción" de un topic exchange)
-                // Asume que tienes un exchange "DomainEventsExchange" y varias colas binedadas a él.
-                // Cada cola representa una "suscripción" de tu anterior Service Bus Topic.
-                string domainEventsExchangeName = rabbitMqConfig.GetValue<string>("Exchanges:DomainEventsExchange:Name"); // "domain_events_topic"
-                string domainEventsExchangeType = rabbitMqConfig.GetValue<string>("Exchanges:DomainEventsExchange:Type"); // "topic"
-
-                // Listener para la "suscripción" de ApiHost1EndUsers
-                string endUsersQueue = rabbitMqConfig.GetValue<string>("Queues:DomainEventsApiHost1EndUsers"); // "domain_events_apihost1_endusers_queue"
-                string endUsersRoutingKey = rabbitMqConfig.GetValue<string>("Bindings:DomainEventsApiHost1EndUsers:RoutingKey"); // ej. "apihost1.endusers.*" o específico
-                if (!string.IsNullOrWhiteSpace(domainEventsExchangeName) && !string.IsNullOrWhiteSpace(endUsersQueue) && endUsersRoutingKey != null)
-                {
-                    services.AddHostedService(provider =>
-                        new RabbitMqMessageListener<DomainEventingMessage>(
-                            provider.GetRequiredService<ILoggerFactory>(),
-                            provider.GetRequiredService<IRabbitMqChannelProvider>(),
-                            provider.GetRequiredService<ITopologyManager>(),
-                            provider.GetRequiredService<IMessageBusMonitoringApiRelayWorker<DomainEventingMessage>>(),
-                            provider.GetRequiredService<IConfigurationSettings>(),
-                            provider.GetRequiredService<IRecorder>(),
-                            provider.GetRequiredService<JsonSerializerOptions>(),
-                            provider.GetRequiredService<IGenericCircuitBreakerStateService>(),
-                            new ListenerQueueConfiguration
-                            {
-                                QueueName = endUsersQueue,
-                                ListenerId = $"DomainEventRelay-{endUsersQueue}",
-                                DeclareExchangeOptions = new ExchangeDeclarationOptions
-                                {
-                                    Name = domainEventsExchangeName,
-                                    Type = domainEventsExchangeType, // "topic"
-                                    Durable = true
-                                },
-                                BindToExchange = true,
-                                ExchangeName = domainEventsExchangeName,
-                                RoutingKey = endUsersRoutingKey,
-                                // Parámetros para IMessageBusMonitoringApiRelayWorker
-                                SubscriberHostName = "ApiHost1", // O de configuración
-                                SubscriptionName = "apihost1-endusers" // O de configuración/convención
-                            }
-                        ));
-                }
-
-                // ... Registra otros listeners para Usages, Emails, SMS, Provisioning, y otras suscripciones de DomainEvents ...
             });
+
+    
+    private static void RegisterQueueListener<TMessage>(
+        IServiceCollection services,
+        IConfigurationSection rabbitMqConfigSection,
+        string queueConfigPath, 
+        string retryPolicyName,
+        ILogger logger)
+        where TMessage : class, IQueuedMessage 
+    {
+        string queueName = rabbitMqConfigSection.GetValue<string>(queueConfigPath);
+        if (string.IsNullOrWhiteSpace(queueName))
+        {
+            logger.LogWarning(
+                "Nombre de cola no encontrado en configuración en '{ConfigPath}'. Listener para {MessageType} no iniciado.",
+                queueConfigPath, typeof(TMessage).Name);
+            return;
+        }
+
+        services.AddHostedService(provider =>
+            new RabbitMqMessageListener<TMessage>(
+                provider.GetRequiredService<ILoggerFactory>(),
+                provider.GetRequiredService<IRabbitMqChannelProvider>(),
+                provider.GetRequiredService<ITopologyManager>(),
+                provider.GetRequiredService<IQueueMonitoringApiRelayWorker<TMessage>>(),
+                provider.GetRequiredService<IConfigurationSettings>(),
+                provider.GetRequiredService<IRecorder>(),
+                provider.GetRequiredService<JsonSerializerOptions>(),
+                provider.GetRequiredService<IGenericCircuitBreakerStateService>(),
+                new ListenerQueueConfiguration
+                {
+                    QueueName = queueName,
+                    ListenerId = $"{typeof(TMessage).Name.Replace("Message", "")}Listener-{queueName}",
+                    RetryPolicyName = retryPolicyName,
+                    MainWorkExchangeName = "", 
+                    MainWorkRoutingKey = queueName,
+                    DeclareQueueOptions = new QueueDeclarationOptions
+                        { Durable = true, DeadLettering = new DeadLetterOptions { DeclareDeadLetterQueue = true } }
+                }
+            ));
+    }
 }
