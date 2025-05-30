@@ -4,6 +4,12 @@ using Infrastructure.Persistence.Common.ApplicationServices;
 using Infrastructure.External.Persistence.Azure.ApplicationServices;
 #elif HOSTEDONAWS
 using Infrastructure.External.Persistence.AWS.ApplicationServices;
+#elif HOSTEDONPREMISES
+using Infrastructure.Broker.RabbitMq.Configuration;
+using Infrastructure.Broker.RabbitMq.Extensions;
+using Infrastructure.Broker.RabbitMq.Publishing;
+using Infrastructure.Broker.RabbitMq.Topology;
+using Infrastructure.External.Persistence.OnPremises.ApplicationServices;
 #endif
 #else
 using Infrastructure.Persistence.Interfaces;
@@ -41,6 +47,14 @@ public class QueuedAuditReporter : IAuditReporter
             AzureStorageAccountQueueStore.Create(NoOpRecorder.Instance, AzureStorageAccountStoreOptions.Credentials(settings))
 #elif HOSTEDONAWS
             AWSSQSQueueStore.Create(NoOpRecorder.Instance, settings)
+#elif HOSTEDONPREMISES
+            RabbitMqQueueStore.Create(
+                container.GetRequiredService<IMessagePublisher>(),
+                container.GetRequiredService<ITopologyManager>(),
+                settings.GetOptions<RabbitMqOptions>(RabbitMqOptions.SectionName),
+                NoOpRecorder.Instance,
+                container.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>()
+            )
 #endif
 #else
             container.GetRequiredServiceForPlatform<IQueueStore>()
