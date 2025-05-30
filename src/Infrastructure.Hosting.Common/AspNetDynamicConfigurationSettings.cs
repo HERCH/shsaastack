@@ -242,6 +242,27 @@ public class AspNetDynamicConfigurationSettings : IConfigurationSettings
         }
 
         public bool IsConfigured => true;
+
+        public void BindSection<T>(string sectionKey, T instanceToBind)
+            where T : class
+        {
+            if (instanceToBind == null) throw new ArgumentNullException(nameof(instanceToBind));
+
+            IConfiguration sectionToBind;
+            if (string.IsNullOrWhiteSpace(sectionKey))
+            {
+                sectionToBind = _configuration;
+            }
+            else
+            {
+                sectionToBind = _configuration.GetSection(sectionKey);
+            }
+
+            if (sectionToBind.Exists())
+            {
+                sectionToBind.Bind(instanceToBind);
+            }
+        }
     }
 
     private sealed class TenantSettings : ISettingsSafely
