@@ -194,6 +194,14 @@ public static class HostExtensions
                 builder.AddApplicationInsights();
 #elif HOSTEDONAWS
                 builder.AddLambdaLogger();
+#elif  HOSTEDONPREMISES
+                builder.AddSimpleConsole(options =>
+                {
+                    options.TimestampFormat = "hh:mm:ss ";
+                    options.SingleLine = true;
+                    options.IncludeScopes = false;
+                });
+                builder.AddDebug();
 #endif
 #endif
                 builder.AddEventSourceLogger();
