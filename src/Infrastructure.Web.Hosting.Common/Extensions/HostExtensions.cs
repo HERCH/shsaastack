@@ -54,7 +54,7 @@ using Microsoft.ApplicationInsights.Extensibility;
 using Amazon.XRay.Recorder.Core;
 using Amazon.XRay.Recorder.Handlers.AwsSdk;
 using Infrastructure.Persistence.Common.ApplicationServices;
-#elif  HOSTEDONPREMISES
+#elif HOSTEDONPREMISES
 using Infrastructure.Broker.RabbitMq.Configuration;
 using Infrastructure.Broker.RabbitMq.Publishing;
 using Infrastructure.Broker.RabbitMq.Topology;
@@ -96,7 +96,9 @@ public static class HostExtensions
         RegisterPersistence(hostOptions.Persistence.UsesQueues, hostOptions.IsMultiTenanted);
         RegisterEventing(hostOptions.Persistence.UsesEventing);
         RegisterCors(hostOptions.CORS);
-
+#if !TESTINGONLY && HOSTEDONPREMISES
+        services.AddRabbitMqInfrastructure(appBuilder.Configuration);
+#endif
         var app = appBuilder.Build();
 
         // Note: The order of the middleware matters!
@@ -624,12 +626,12 @@ public static class HostExtensions
                 SqlServerBlobStore.Create(c.GetRequiredService<IRecorder>(),
                     SqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
             services.AddForPlatform<IQueueStore>(c => RabbitMqQueueStore.Create(
-                    c.GetRequiredService<IMessagePublisher>(),
-                    c.GetRequiredService<ITopologyManager>(),
-                    c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
-                    c.GetRequiredService<IRecorder>(),
-                    c.GetRequiredService<ILoggerFactory>()
-                ));
+                c.GetRequiredService<IMessagePublisher>(),
+                c.GetRequiredService<ITopologyManager>(),
+                c.GetRequiredService<IOptions<RabbitMqOptions>>().Value,
+                c.GetRequiredService<IRecorder>(),
+                c.GetRequiredService<ILoggerFactory>()
+            ));
             services.AddForPlatform<IMessageBusStore>(c =>
                 RabbitMqMessageBusStore.Create(
                     c.GetRequiredService<IMessagePublisher>(),
@@ -656,7 +658,7 @@ public static class HostExtensions
                         c.GetRequiredService<IRecorder>(),
                         c.GetRequiredService<ILoggerFactory>()
                     ));
-        
+
                 services.AddPerHttpRequest<IMessageBusStore>(c =>
                     RabbitMqMessageBusStore.Create(
                         c.GetRequiredService<IMessagePublisher>(),
