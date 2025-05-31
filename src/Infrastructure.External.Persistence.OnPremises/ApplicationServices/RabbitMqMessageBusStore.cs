@@ -273,31 +273,93 @@ public class RabbitMqMessageBusStore : IMessageBusStore
             using var jsonDoc = JsonDocument.Parse(jsonMessage);
             JsonElement root = jsonDoc.RootElement;
 
+            // 1. Intentar buscar una clave de enrutamiento explícita (ideal si puedes añadirla al JSON)
             if (root.TryGetProperty("routingKey", out var rkElement) && rkElement.ValueKind == JsonValueKind.String)
                 return rkElement.GetString() ?? string.Empty;
-            if (root.TryGetProperty("eventType", out var etElement) && etElement.ValueKind == JsonValueKind.String)
-                return etElement.GetString() ?? string.Empty;
-            if (root.TryGetProperty("messageType", out var mtElement) && mtElement.ValueKind == JsonValueKind.String)
-                return mtElement.GetString() ?? string.Empty;
-            if (root.TryGetProperty("type", out var tElement)
-                && tElement.ValueKind == JsonValueKind.String) // Común en CloudEvents
-                return tElement.GetString() ?? string.Empty;
+
+            // 2. Si no, intentar derivar del objeto "Event"
+            if (root.TryGetProperty("Event", out var eventObjectElement)
+                && eventObjectElement.ValueKind == JsonValueKind.Object)
+            {
+                // 2a. Buscar una clave de enrutamiento explícita dentro de "Event"
+                if (eventObjectElement.TryGetProperty("routingKey", out rkElement)
+                    && rkElement.ValueKind == JsonValueKind.String)
+                    return rkElement.GetString() ?? string.Empty;
+
+                // 2b. Usar RootAggregateType para mapear a un routing key específico de RabbitMQ
+                if (eventObjectElement.TryGetProperty("RootAggregateType", out var aggTypeElement)
+                    && aggTypeElement.ValueKind == JsonValueKind.String)
+                {
+                    string aggregateType = aggTypeElement.GetString();
+                    switch (aggregateType)
+                    {
+                        case "EndUserRoot":
+                            return "ApiHost1-EndUsers"; // Mapeo directo
+
+                        case "OrganizationRoot": // Asumiendo este valor para organizaciones
+                            return "ApiHost1-Organizations";
+
+                        case "SubscriptionRoot": // Asumiendo este valor
+                            return "ApiHost1-Subscriptions";
+
+                        case "UserProfileRoot": // Asumiendo este valor
+                            return "ApiHost1-UserProfiles";
+
+                        // Añade más mapeos según tus RootAggregateTypes y routing keys
+                        default:
+                            logger?.LogWarning(
+                                "RootAggregateType '{AggregateType}' en el evento no tiene un mapeo conocido a un routing key de RabbitMQ para el exchange '{ExchangeName}'.",
+                                aggregateType, exchangeNameForLogging);
+                            break; // Continuar para ver si otros campos coinciden
+                    }
+                }
+
+                // 2c. Como fallback, intentar con eventType o type dentro de "Event" (si son específicos)
+                if (eventObjectElement.TryGetProperty("eventType", out var etElement)
+                    && etElement.ValueKind == JsonValueKind.String)
+                {
+                    // Aquí necesitarías verificar si el valor de eventType (ej. "Created")
+                    // se puede usar o combinar con otra cosa para formar el routing key.
+                    // Por ahora, si no es uno de los mapeados arriba, este podría no ser el routing key final.
+                    // string eventType = etElement.GetString() ?? string.Empty;
+                    // if (IsSpecificRoutingKey(eventType)) return eventType; // Necesitarías una función IsSpecificRoutingKey
+                }
+
+                if (eventObjectElement.TryGetProperty("type", out var tElement)
+                    && tElement.ValueKind == JsonValueKind.String)
+                {
+                    // string type = tElement.GetString() ?? string.Empty;
+                    // if (IsSpecificRoutingKey(type)) return type;
+                }
+            }
+
+            // 3. Fallback a los campos de nivel superior (menos probable según tu JSON)
+            if (root.TryGetProperty("eventType", out var topEtElement)
+                && topEtElement.ValueKind == JsonValueKind.String)
+                return topEtElement.GetString() ?? string.Empty;
+            if (root.TryGetProperty("messageType", out var topMtElement)
+                && topMtElement.ValueKind == JsonValueKind.String)
+                return topMtElement.GetString() ?? string.Empty;
+            if (root.TryGetProperty("type", out var topTElement) && topTElement.ValueKind == JsonValueKind.String)
+                return topTElement.GetString() ?? string.Empty;
         }
         catch (JsonException ex)
         {
             logger?.LogWarning(ex,
-                "Could not parse JSON to extract routing key for exchange '{ExchangeName}'. Invalid JSON. Message sample: {MessageSample}",
-                exchangeNameForLogging, jsonMessage.Length > 100
-                    ? jsonMessage.Substring(0, 100) + "..."
+                "No se pudo parsear JSON para extraer routing key para exchange '{ExchangeName}'. JSON Inválido. Muestra: {MessageSample}",
+                exchangeNameForLogging, jsonMessage.Length > 200
+                    ? jsonMessage.Substring(0, 200) + "..."
                     : jsonMessage);
             // No relanzar aquí, permitir que SendAsync decida si una routing key vacía es aceptable.
             // Opcionalmente, puedes hacer que este helper lance una excepción específica si el parseo falla.
         }
 
-        logger?.LogDebug(
-            "No standard routing key field (routingKey, eventType, messageType, type) found in JSON message for exchange '{ExchangeName}'. Returning empty routing key.",
-            exchangeNameForLogging);
-        return string.Empty;
+        logger?.LogWarning(
+            "No se pudo determinar un routing key adecuado del mensaje para el exchange '{ExchangeName}'. Se devuelve routing key vacío. Esto probablemente resultará en que el mensaje no sea enrutado en un exchange de tipo 'topic'. Muestra: {MessageSample}",
+            exchangeNameForLogging, jsonMessage.Length > 200
+                ? jsonMessage.Substring(0, 200) + "..."
+                : jsonMessage);
+        return string.Empty; // Devuelve vacío si no se encuentra
     }
 
     // Helper para extraer MessageId del JSON
