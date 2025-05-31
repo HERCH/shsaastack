@@ -6,8 +6,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Infrastructure.Broker.RabbitMq\Infrastructure.Broker.RabbitMq.csproj" />
-        <ProjectReference Include="..\Infrastructure.Persistence.Common\Infrastructure.Persistence.Common.csproj" />
-        <ProjectReference Include="..\Infrastructure.Persistence.Interfaces\Infrastructure.Persistence.Interfaces.csproj" />
     </ItemGroup>
     
     <ItemGroup>

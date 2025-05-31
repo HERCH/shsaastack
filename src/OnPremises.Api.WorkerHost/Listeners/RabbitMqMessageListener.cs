@@ -7,6 +7,7 @@ using Infrastructure.Broker.RabbitMq.Channels;
 using Infrastructure.Broker.RabbitMq.Configuration;
 using Infrastructure.Broker.RabbitMq.Extensions;
 using Infrastructure.Broker.RabbitMq.Topology;
+using Infrastructure.External.Persistence.OnPremises.Extensions;
 using Infrastructure.Workers.Api;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;

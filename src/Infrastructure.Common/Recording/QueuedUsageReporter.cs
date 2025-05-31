@@ -10,6 +10,7 @@ using Infrastructure.Broker.RabbitMq.Extensions;
 using Infrastructure.Broker.RabbitMq.Publishing;
 using Infrastructure.Broker.RabbitMq.Topology;
 using Infrastructure.External.Persistence.OnPremises.ApplicationServices;
+using Infrastructure.External.Persistence.OnPremises.Extensions;
 #endif
 #else
 using Infrastructure.Persistence.Interfaces;
