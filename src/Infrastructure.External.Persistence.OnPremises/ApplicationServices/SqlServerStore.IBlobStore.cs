@@ -217,7 +217,7 @@ public class SqlServerBlobStore : IBlobStore // No necesita IAsyncDisposable si 
     public async Task<Result<Error>> DestroyAllAsync(string containerName, CancellationToken cancellationToken)
     {
         containerName.ThrowIfNotValuedParameter(nameof(containerName), Resources.AnyStore_MissingContainerName);
-        _logger.LogInformation("Attempting to destroy all blobs in container '{ContainerName}' from database.",
+        _recorder.TraceInformation(null, "Attempting to destroy all blobs in container '{ContainerName}' from database.",
             containerName);
         try
         {
@@ -237,7 +237,7 @@ public class SqlServerBlobStore : IBlobStore // No necesita IAsyncDisposable si 
             // }
             // --- Fin Lógica de Acceso a Datos ---
             await Task.Delay(10, cancellationToken); // Placeholder
-            _logger.LogWarning("DestroyAllAsync - Lógica de BD no implementada completamente.");
+            _recorder.TraceWarning(null, "DestroyAllAsync - Lógica de BD no implementada completamente.");
 
             return Result.Ok;
         }
