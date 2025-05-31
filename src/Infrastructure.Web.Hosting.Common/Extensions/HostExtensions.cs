@@ -59,6 +59,7 @@ using Infrastructure.Broker.RabbitMq.Configuration;
 using Infrastructure.Broker.RabbitMq.Publishing;
 using Infrastructure.Broker.RabbitMq.Topology;
 using Infrastructure.External.Persistence.OnPremises.ApplicationServices.RabbitMq;
+using Infrastructure.External.Persistence.OnPremises.ApplicationServices;
 using Microsoft.Extensions.Options;
 using Infrastructure.External.Persistence.OnPremises.ApplicationServices;
 #endif

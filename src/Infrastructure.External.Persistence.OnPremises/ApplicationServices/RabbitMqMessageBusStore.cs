@@ -13,7 +13,7 @@ using System.Text.Json; // Para JsonDocument
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Infrastructure.External.Persistence.OnPremises.ApplicationServices.RabbitMq;
+namespace Infrastructure.External.Persistence.OnPremises.ApplicationServices;
 // Ajusta el namespace
 
 public class RabbitMqMessageBusStore : IMessageBusStore
