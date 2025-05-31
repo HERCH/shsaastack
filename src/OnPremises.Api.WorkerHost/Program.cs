@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Application.Interfaces.Services;
-using Application.Persistence.Interfaces; 
+using Application.Persistence.Interfaces;
 using Application.Persistence.Shared.ReadModels;
-using Common; 
+using Common;
 using Common.Configuration;
 using Common.FeatureFlags;
 using Common.Recording;
@@ -12,12 +12,12 @@ using Infrastructure.Broker.RabbitMq.Extensions;
 using Infrastructure.Broker.RabbitMq.Topology;
 using Infrastructure.Common.Recording;
 using Infrastructure.Hosting.Common;
-using Infrastructure.Interfaces; 
-using Infrastructure.Web.Api.Common.Clients; 
-using Infrastructure.Web.Api.Interfaces.Clients; 
-using Infrastructure.Workers.Api; 
-using Infrastructure.Workers.Api.Workers; 
-using OnPremises.Api.WorkerHost; 
+using Infrastructure.Interfaces;
+using Infrastructure.Web.Api.Common.Clients;
+using Infrastructure.Web.Api.Interfaces.Clients;
+using Infrastructure.Workers.Api;
+using Infrastructure.Workers.Api.Workers;
+using OnPremises.Api.WorkerHost;
 
 
 
