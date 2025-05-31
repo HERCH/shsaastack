@@ -3,7 +3,6 @@ using Common.Extensions;
 using Infrastructure.Broker.RabbitMq.Configuration;
 using Infrastructure.Broker.RabbitMq.Publishing;
 using Infrastructure.Broker.RabbitMq.Topology;
-using Infrastructure.External.Persistence.OnPremises.ApplicationServices.RabbitMq;
 using Infrastructure.External.Persistence.OnPremises.Extensions;
 using Infrastructure.Persistence.Interfaces;
 using Microsoft.Extensions.Logging;
