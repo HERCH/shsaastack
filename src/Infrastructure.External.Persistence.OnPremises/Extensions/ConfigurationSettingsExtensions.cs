@@ -1,6 +1,6 @@
 using Common.Configuration;
 
-namespace Infrastructure.Broker.RabbitMq.Extensions;
+namespace Infrastructure.External.Persistence.OnPremises.Extensions;
 
 public static class ConfigurationSettingsExtensions
 {

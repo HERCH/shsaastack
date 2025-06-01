@@ -63,7 +63,20 @@ public class RabbitMqMessagePublisher : IMessagePublisher
             // This makes publishes effectively synchronous until confirmed or nacked.
             channel.ConfirmSelect(); // Idempotent if already enabled.
 
-            byte[] body = _serializer.Serialize(message);
+            byte[] body;
+            if (message is string jsonStringPayload)
+            {
+                // Si el mensaje ya es un string, asumimos que es un payload JSON pre-serializado.
+                // Lo convertimos directamente a bytes UTF-8 para evitar doble serialización.
+                _logger.LogDebug("Publishing pre-serialized JSON string payload. Exchange: '{ExchangeName}', RoutingKey: '{RoutingKey}'",
+                    exchangeName, routingKey);
+                body = System.Text.Encoding.UTF8.GetBytes(jsonStringPayload);
+            }
+            else
+            {
+                // Para cualquier otro tipo T, lo serializamos normalmente.
+                body = _serializer.Serialize(message);
+            }
             properties ??= new MessageProperties(); // Use default properties if null
 
             // Ensure MessageId is set for OpenTelemetry trace propagation
