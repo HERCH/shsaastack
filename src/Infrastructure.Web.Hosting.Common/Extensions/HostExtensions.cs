@@ -61,7 +61,6 @@ using Infrastructure.Broker.RabbitMq.Topology;
 using Infrastructure.Broker.RabbitMq.Extensions;
 using Infrastructure.External.Persistence.OnPremises.ApplicationServices;
 using Microsoft.Extensions.Options;
-using Infrastructure.External.Persistence.OnPremises.ApplicationServices;
 #endif
 #endif
 
@@ -206,7 +205,7 @@ public static class HostExtensions
                 builder.AddApplicationInsights();
 #elif HOSTEDONAWS
                 builder.AddLambdaLogger();
-#elif  HOSTEDONPREMISES
+#elif HOSTEDONPREMISES
                 builder.AddSimpleConsole(options =>
                 {
                     options.TimestampFormat = "hh:mm:ss ";
@@ -627,9 +626,20 @@ public static class HostExtensions
             }
 #elif HOSTEDONPREMISES
             // EXTEND: Add your production stores here
+#if USEDATABASEEVENTSTORE
             services.AddForPlatform<IDataStore, IEventStore, SqlServerStore>(c =>
                 SqlServerStore.Create(c.GetRequiredService<IRecorder>(),
                     SqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
+#else
+                services.AddSingleton<IKurrentEventStoreClient>(c =>
+                    new SharedKurrentEventStoreClient(c.GetRequiredServiceForPlatform<IConfigurationSettings>()));
+                services.AddForPlatform<IEventStore>(c =>
+                    KurrentEventStore.Create(c.GetRequiredService<IRecorder>(),
+                        KurrentEventStoreOptions.SharedClient(c.GetRequiredService<IKurrentEventStoreClient>())));
+                services.AddForPlatform<IDataStore>(c =>
+                    AzureSqlServerStore.Create(c.GetRequiredService<IRecorder>(),
+                        AzureSqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
+#endif
             services.AddForPlatform<IBlobStore>(c =>
                 SqlServerBlobStore.Create(c.GetRequiredService<IRecorder>(),
                     SqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
@@ -651,13 +661,22 @@ public static class HostExtensions
 
             if (isMultiTenanted)
             {
+#if USEDATABASEEVENTSTORE
                 services.AddPerHttpRequest<IDataStore, IEventStore, SqlServerStore>(c =>
                     SqlServerStore.Create(c.GetRequiredService<IRecorder>(),
                         SqlServerStoreOptions.Credentials(c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
+#else
+                    services.AddPerHttpRequest<IEventStore>(c =>
+                        KurrentEventStore.Create(c.GetRequiredService<IRecorder>(),
+                            KurrentEventStoreOptions.SharedClient(c.GetRequiredService<IKurrentEventStoreClient>())));
+                    services.AddPerHttpRequest<IDataStore>(c =>
+                        AzureSqlServerStore.Create(c.GetRequiredService<IRecorder>(),
+                            AzureSqlServerStoreOptions.Credentials(c.GetRequiredService<IConfigurationSettings>())));
+#endif
                 services.AddPerHttpRequest<IBlobStore>(c =>
                     SqlServerBlobStore.Create(c.GetRequiredService<IRecorder>(),
                         SqlServerStoreOptions.Credentials(c.GetRequiredService<IConfigurationSettings>())));
-                
+
                 services.AddPerHttpRequest<IQueueStore>(c =>
                     RabbitMqQueueStore.Create(
                         c.GetRequiredService<IMessagePublisher>(),
@@ -678,10 +697,19 @@ public static class HostExtensions
             }
             else
             {
+#if USEDATABASEEVENTSTORE
                 services.AddSingleton<IDataStore, IEventStore, SqlServerStore>(c =>
                     SqlServerStore.Create(c.GetRequiredService<IRecorder>(),
                         SqlServerStoreOptions.Credentials(
                             c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
+#else
+                    services.AddSingleton<IEventStore>(c =>
+                        KurrentEventStore.Create(c.GetRequiredService<IRecorder>(),
+                            KurrentEventStoreOptions.SharedClient(c.GetRequiredService<IKurrentEventStoreClient>())));
+                    services.AddSingleton<IDataStore>(c =>
+                        AzureSqlServerStore.Create(c.GetRequiredService<IRecorder>(),
+                            AzureSqlServerStoreOptions.Credentials(c.GetRequiredService<IConfigurationSettings>())));
+#endif
                 services.AddSingleton<IBlobStore>(c =>
                     SqlServerBlobStore.Create(c.GetRequiredService<IRecorder>(),
                         SqlServerStoreOptions.Credentials(c.GetRequiredService<IConfigurationSettings>())));
