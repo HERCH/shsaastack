@@ -19,8 +19,6 @@ using Infrastructure.Workers.Api;
 using Infrastructure.Workers.Api.Workers;
 using OnPremises.Api.WorkerHost;
 
-
-
 public class Program
 {
     public static async Task Main(string[] args)
@@ -45,30 +43,27 @@ public class Program
                 logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
                 logging.AddConsole();
                 logging.AddDebug();
-                
-                
             })
             .ConfigureServices((hostContext, services) =>
             {
                 IConfiguration configuration = hostContext.Configuration;
                 var logger =
                     services.BuildServiceProvider()
-                        .GetRequiredService<ILogger<Program>>(); 
+                        .GetRequiredService<ILogger<Program>>();
 
-                
                 services.AddHttpClient();
-                
+
                 services.AddSingleton<IConfigurationSettings>(provider =>
                     new AspNetDynamicConfigurationSettings(
                         provider.GetRequiredService<IConfiguration>(),
-                        provider.GetService<ITenancyContext>() 
+                        provider.GetService<ITenancyContext>()
                     ));
-                
+
                 services.AddSingleton<IHostSettings>(provider =>
                     new HostSettings(provider.GetRequiredService<IConfigurationSettings>()));
-                services.AddSingleton(JsonSerializerOptions.Default); 
+                services.AddSingleton(JsonSerializerOptions.Default);
                 services.AddSingleton<IFeatureFlags, EmptyFeatureFlags>();
-                services.AddSingleton<ICrashReporter, NoOpCrashReporter>(); 
+                services.AddSingleton<ICrashReporter, NoOpCrashReporter>();
                 services.AddSingleton<IRecorder>(c =>
                     new CrashTraceOnlyRecorder("OnPremises.Api.WorkerHost", c.GetRequiredService<ILoggerFactory>(),
                         c.GetRequiredService<ICrashReporter>()));
@@ -80,13 +75,10 @@ public class Program
                         c.GetRequiredService<IHostSettings>()
                     ));
 
-                
                 services.AddRabbitMqInfrastructure(configuration, RabbitMqOptions.SectionName);
 
-                
                 services.AddSingleton<IGenericCircuitBreakerStateService, InMemoryCircuitBreakerStateService>();
 
-                
                 services.AddTransient<IQueueMonitoringApiRelayWorker<AuditMessage>, DeliverAuditRelayWorker>();
                 services.AddTransient<IQueueMonitoringApiRelayWorker<UsageMessage>, DeliverUsageRelayWorker>();
                 services.AddTransient<IQueueMonitoringApiRelayWorker<EmailMessage>, SendEmailRelayWorker>();
@@ -98,10 +90,8 @@ public class Program
                     .AddTransient<IMessageBusMonitoringApiRelayWorker<DomainEventingMessage>,
                         DeliverDomainEventingRelayWorker>();
 
-                
                 var rabbitMqConfigSection = configuration.GetSection(RabbitMqOptions.SectionName);
 
-                
                 RegisterQueueListener<AuditMessage>(services, rabbitMqConfigSection, "Queues:Audits",
                     "DefaultWorkQueuePolicy", logger);
                 RegisterQueueListener<UsageMessage>(services, rabbitMqConfigSection, "Queues:Usages",
@@ -109,11 +99,10 @@ public class Program
                 RegisterQueueListener<EmailMessage>(services, rabbitMqConfigSection, "Queues:Emails",
                     "DefaultWorkQueuePolicy", logger);
                 RegisterQueueListener<SmsMessage>(services, rabbitMqConfigSection, "Queues:Smses",
-                    "DefaultWorkQueuePolicy", logger); 
+                    "DefaultWorkQueuePolicy", logger);
                 RegisterQueueListener<ProvisioningMessage>(services, rabbitMqConfigSection, "Queues:Provisioning",
                     "DefaultWorkQueuePolicy", logger);
 
-                
                 var domainEventBindingKeys = new[]
                 {
                     "DomainEvents_ApiHost1_EndUsers",
@@ -185,10 +174,10 @@ public class Program
                                     BindToExchange = true,
                                     ExchangeName = domainEventsExchangeName,
                                     RoutingKey = routingKey,
-                                    RetryPolicyName = "DomainEventsPolicy", 
-                                    MainWorkExchangeName = domainEventsExchangeName, 
-                                    MainWorkRoutingKey = routingKey, 
-                                    SubscriberHostName = "ApiHost1", 
+                                    RetryPolicyName = "DomainEventsPolicy",
+                                    MainWorkExchangeName = domainEventsExchangeName,
+                                    MainWorkRoutingKey = routingKey,
+                                    SubscriberHostName = "ApiHost1",
                                     SubscriptionName = subscriptionName
                                 }
                             ));
@@ -196,14 +185,13 @@ public class Program
                 }
             });
 
-    
     private static void RegisterQueueListener<TMessage>(
         IServiceCollection services,
         IConfigurationSection rabbitMqConfigSection,
-        string queueConfigPath, 
+        string queueConfigPath,
         string retryPolicyName,
         ILogger logger)
-        where TMessage : class, IQueuedMessage 
+        where TMessage : class, IQueuedMessage
     {
         string queueName = rabbitMqConfigSection.GetValue<string>(queueConfigPath);
         if (string.IsNullOrWhiteSpace(queueName))
@@ -229,7 +217,7 @@ public class Program
                     QueueName = queueName,
                     ListenerId = $"{typeof(TMessage).Name.Replace("Message", "")}Listener-{queueName}",
                     RetryPolicyName = retryPolicyName,
-                    MainWorkExchangeName = "", 
+                    MainWorkExchangeName = "",
                     MainWorkRoutingKey = queueName,
                     DeclareQueueOptions = new QueueDeclarationOptions
                         { Durable = true, DeadLettering = new DeadLetterOptions { DeclareDeadLetterQueue = true } }
