@@ -76,21 +76,39 @@ services.AddRabbitMQStore(isMultiTenanted: false);
 services.AddRabbitMQEventNotificationMessageBroker();
 ```
 
-**Note**: Instead of modifying the existing `HostExtensions.cs`, you can conditionally register RabbitMQ based on configuration:
+**Note**: RabbitMQ is now integrated into `HostExtensions.cs` with conditional registration based on configuration. To enable RabbitMQ, set `ApplicationServices:RabbitMQ:Enabled` to `true` in your `appsettings.json`:
 
-```csharp
-var useRabbitMQ = configuration.GetValue<bool>("ApplicationServices:RabbitMQ:Enabled");
-if (useRabbitMQ)
+```json
 {
-    services.AddRabbitMQStore(isMultiTenanted);
-    services.AddRabbitMQEventNotificationMessageBroker();
-}
-else
-{
-    // Use default or testing stores
-    services.AddPerHttpRequest<IEventNotificationMessageBroker, NoOpEventNotificationMessageBroker>();
+  "ApplicationServices": {
+    "RabbitMQ": {
+      "Enabled": true,
+      "HostName": "localhost",
+      "Port": 5672,
+      "Username": "guest",
+      "Password": "guest",
+      "VirtualHost": "/"
+    }
+  }
 }
 ```
+
+### Optional: Health Check Registration
+
+Add RabbitMQ health checks to monitor connection status:
+
+```csharp
+// In your Program.cs or Startup.cs
+services.AddRabbitMQHealthCheck("rabbitmq", "ready");
+
+// Configure health check endpoint
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = (check) => check.Tags.Contains("ready")
+});
+```
+
+This creates a health check endpoint at `/health/ready` that verifies RabbitMQ connectivity.
 
 ## Architecture
 

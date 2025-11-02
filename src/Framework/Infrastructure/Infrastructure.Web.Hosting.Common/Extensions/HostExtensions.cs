@@ -520,7 +520,12 @@ public static class HostExtensions
 #endif
 #pragma warning restore CS0618 // Type or member is obsolete
                 }));
+
+            // Register RabbitMQ store if enabled in configuration
+            services.RegisterRabbitMQStoreIfEnabled(appBuilder.Configuration, isMultiTenanted);
+
 #if TESTINGONLY
+            // Fallback to testing store if RabbitMQ is not enabled
             TestingOnlyHostExtensions.RegisterStoreForTestingOnly(services, usesQueues, isMultiTenanted);
 #endif
         }
@@ -534,7 +539,15 @@ public static class HostExtensions
                 // and sending "integration events" to some external message broker
 
                 services.AddPerHttpRequest<IDomainEventConsumerRelay, AsynchronousQueueConsumerRelay>();
-                services.AddPerHttpRequest<IEventNotificationMessageBroker, NoOpEventNotificationMessageBroker>();
+
+                // Register RabbitMQ event broker if enabled in configuration, otherwise use NoOp
+                services.RegisterRabbitMQEventBrokerIfEnabled(appBuilder.Configuration);
+
+                // Fallback to NoOp if RabbitMQ is not enabled
+                if (!appBuilder.Configuration.GetValue<bool>("ApplicationServices:RabbitMQ:Enabled"))
+                {
+                    services.AddPerHttpRequest<IEventNotificationMessageBroker, NoOpEventNotificationMessageBroker>();
+                }
             }
         }
 

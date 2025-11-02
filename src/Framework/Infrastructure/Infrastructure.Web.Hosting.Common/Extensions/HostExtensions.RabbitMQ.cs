@@ -1,22 +1,33 @@
 using Common.Configuration;
 using Infrastructure.Eventing.Interfaces.Notifications;
 using Infrastructure.Hosting.Common.Extensions;
+using Infrastructure.Hosting.Common.RabbitMQ;
 using Infrastructure.Hosting.Common.RabbitMQ.ApplicationServices;
 using Infrastructure.Persistence.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Infrastructure.Hosting.Common.RabbitMQ;
+namespace Infrastructure.Web.Hosting.Common.Extensions;
 
 /// <summary>
-///     Provides extension methods for registering RabbitMQ services
+///     Provides extension methods for conditionally registering RabbitMQ services
 /// </summary>
 public static class RabbitMQHostExtensions
 {
+    private const string RabbitMQEnabledSettingName = "ApplicationServices:RabbitMQ:Enabled";
+
     /// <summary>
-    ///     Registers RabbitMQ as the message store (IQueueStore and IMessageBusStore)
+    ///     Registers RabbitMQ stores if enabled in configuration
     /// </summary>
-    public static IServiceCollection AddRabbitMQStore(this IServiceCollection services, bool isMultiTenanted)
+    public static void RegisterRabbitMQStoreIfEnabled(this IServiceCollection services,
+        IConfiguration configuration, bool isMultiTenanted)
     {
+        var useRabbitMQ = configuration.GetValue<bool>(RabbitMQEnabledSettingName);
+        if (!useRabbitMQ)
+        {
+            return;
+        }
+
         services.AddForPlatform<IQueueStore, IMessageBusStore, RabbitMQStore>(c =>
             RabbitMQStore.Create(RabbitMQSettings.LoadFromSettings(
                 c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
@@ -33,30 +44,20 @@ public static class RabbitMQHostExtensions
                 RabbitMQStore.Create(RabbitMQSettings.LoadFromSettings(
                     c.GetRequiredServiceForPlatform<IConfigurationSettings>())));
         }
-
-        return services;
     }
 
     /// <summary>
-    ///     Registers RabbitMQ as the integration event notification message broker
+    ///     Registers RabbitMQ event notification message broker if enabled in configuration
     /// </summary>
-    public static IServiceCollection AddRabbitMQEventNotificationMessageBroker(this IServiceCollection services)
+    public static void RegisterRabbitMQEventBrokerIfEnabled(this IServiceCollection services,
+        IConfiguration configuration)
     {
+        var useRabbitMQ = configuration.GetValue<bool>(RabbitMQEnabledSettingName);
+        if (!useRabbitMQ)
+        {
+            return;
+        }
+
         services.AddPerHttpRequest<IEventNotificationMessageBroker, RabbitMQEventNotificationMessageBroker>();
-
-        return services;
-    }
-
-    /// <summary>
-    ///     Registers RabbitMQ health check
-    /// </summary>
-    public static IServiceCollection AddRabbitMQHealthCheck(this IServiceCollection services, string name = "rabbitmq",
-        params string[] tags)
-    {
-        services.AddHealthChecks()
-            .AddCheck<RabbitMQHealthCheck>(name, tags: tags);
-
-        return services;
     }
 }
-
