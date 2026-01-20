@@ -8,7 +8,6 @@ import Alert from '../alert/Alert.tsx';
 import { OfflineBanner } from '../offline/OfflineBanner.tsx';
 import ButtonAction from './ButtonAction.tsx';
 
-
 const meta: Meta<typeof ButtonAction> = {
   title: 'Components/Button/ButtonAction',
   component: ButtonAction,
@@ -25,7 +24,7 @@ const meta: Meta<typeof ButtonAction> = {
     },
     variant: {
       control: { type: 'select' },
-      options: ['primary', 'secondary', 'outline', 'ghost', 'danger']
+      options: ['brand-primary', 'brand-secondary', 'outline', 'ghost', 'danger']
     },
     busyLabel: {
       control: 'text'

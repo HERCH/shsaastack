@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RoutePaths } from '../constants';
 import { EmptyResponse, ProblemDetails } from './apiHost1';
 import { client as apiHost1 } from './apiHost1/client.gen';
-import { homePath, initializeApiClient } from './index';
+import { initializeApiClient } from './index';
 import { logout, refreshToken } from './websiteHost';
-
 
 type ResInterceptor<Res, Req, Options> = (response: Res, request: Req, options: Options) => Res | Promise<Res>;
 
@@ -72,7 +72,7 @@ describe('Handle 403 Forbidden', () => {
     } as unknown as Response;
 
     await expect(handler(response, {} as any, {} as any)).resolves.toMatchObject(response);
-    expect(window.location.assign).toHaveBeenCalledWith(homePath);
+    expect(window.location.assign).toHaveBeenCalledWith(RoutePaths.Home);
   });
 });
 
@@ -121,11 +121,11 @@ describe('Handle 401 Unauthorized', () => {
     );
     expect(refreshToken).toHaveBeenCalled();
     expect(logout).toHaveBeenCalled();
-    expect(window.location.assign).toHaveBeenCalledWith(homePath);
+    expect(window.location.assign).toHaveBeenCalledWith(RoutePaths.Home);
   });
 
   it('when refreshing token fails with 401 error, then logout and redirect to home', async () => {
-    vi.mocked(refreshToken).mockImplementationOnce(config =>
+    vi.mocked(refreshToken).mockImplementationOnce((config) =>
       Promise.resolve({
         data: {} as EmptyResponse,
         request: {} as Request,
@@ -139,7 +139,7 @@ describe('Handle 401 Unauthorized', () => {
     );
     expect(refreshToken).toHaveBeenCalled();
     expect(logout).toHaveBeenCalled();
-    expect(window.location.assign).toHaveBeenCalledWith(homePath);
+    expect(window.location.assign).toHaveBeenCalledWith(RoutePaths.Home);
   });
 
   it('when refreshing token fails with another error, then resolve with refresh error', async () => {
@@ -183,7 +183,7 @@ describe('Handle 401 Unauthorized', () => {
     );
     expect(fetch).toHaveBeenCalledWith('https://localhost/aurl', expect.anything());
     expect(logout).toHaveBeenCalled();
-    expect(window.location.assign).toHaveBeenCalledWith(homePath);
+    expect(window.location.assign).toHaveBeenCalledWith(RoutePaths.Home);
   });
 
   it('when retried request fails with another error, then resolve retry response', async () => {

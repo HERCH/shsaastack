@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react';
 import Label from '../label/Label.tsx';
 import Icon, { allSymbols, IconSymbol } from './Icon.tsx';
 
-
 const meta: Meta<typeof Icon> = {
   title: 'Components/Icon',
   component: Icon,
@@ -17,9 +16,13 @@ const meta: Meta<typeof Icon> = {
     color: {
       control: { type: 'select' },
       options: [
-        'primary',
-        'secondary',
-        'accent',
+        'brand-primary',
+        'brand-secondary',
+        'success',
+        'warning',
+        'error',
+        'info',
+        'neutral',
         'red-50',
         'red-100',
         'red-200',
@@ -274,10 +277,10 @@ type Story = StoryObj<typeof meta>;
 export const AllIcons: Story = {
   args: {
     size: 30,
-    color: 'primary'
+    color: 'brand-primary'
   },
   render: (args) => (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-8 gap-y-8 color-primary">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-8 gap-y-8 color-brand-primary">
       {allSymbols.map((name) => (
         <div key={name}>
           <div className="flex flex-col items-center space-y-4">
@@ -285,7 +288,7 @@ export const AllIcons: Story = {
               symbol={name as IconSymbol}
               size={args.size}
               color={args.color}
-              className="border-1 border-dotted border-gray-300"
+              className="border-1 border-dotted border-neutral-300"
             />
             <Label id={`${name}_label`} align="center">
               {name}

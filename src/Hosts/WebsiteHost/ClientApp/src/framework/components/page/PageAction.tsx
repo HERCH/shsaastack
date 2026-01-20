@@ -6,7 +6,6 @@ import { createComponentId } from '../Components';
 import Loader from '../loader/Loader.tsx';
 import UnhandledError from '../unhandledError/UnhandledError.tsx';
 
-
 export interface PageActionProps<TRequestData = any, ExpectedErrorCode extends string = any, TResponse = any> {
   id?: string;
   children?: React.ReactNode;
@@ -70,8 +69,8 @@ const PageAction = forwardRef<PageActionRef<any>, PageActionProps<any, any, any>
       {isExecuting && (
         <Loader
           id={`${componentId}_loader`}
-          type="inline"
           message={loadingMessage ? loadingMessage : translate('components.page.page_action.loader.title')}
+          type="inline"
         />
       )}
       {canShowContent && children && <div data-testid={`${componentId}_content`}>{children}</div>}

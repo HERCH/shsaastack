@@ -27,6 +27,7 @@ import { Tabs } from '../../../framework/components/navigation/Tabs.tsx';
 import PageAction, { PageActionRef } from '../../../framework/components/page/PageAction.tsx';
 import Select from '../../../framework/components/select/Select.tsx';
 import Tag from '../../../framework/components/tag/Tag.tsx';
+import { RoutePaths } from '../../../framework/constants.ts';
 import { useCurrentUser } from '../../../framework/providers/CurrentUserContext.tsx';
 import { UploadAvatarErrors } from '../../userProfiles/actions/changeProfileAvatar.ts';
 import {
@@ -71,7 +72,7 @@ export const OrganizationEditPage: React.FC = () => {
   useEffect(() => getOrganizationTrigger.current?.execute(), []);
 
   return (
-    <FormPage title={translate('pages.organizations.edit.title')} align="top">
+    <FormPage title={organization?.name ?? translate('pages.organizations.edit.title')} align="top">
       <PageAction
         id="get_organization"
         action={getOrganization}
@@ -104,7 +105,7 @@ export const OrganizationEditPage: React.FC = () => {
         />
       </PageAction>
       <div className="text-center">
-        <Link to="/organizations">{translate('pages.organizations.edit.links.organizations')}</Link>
+        <Link to={RoutePaths.Organizations}>{translate('pages.organizations.edit.links.organizations')}</Link>
       </div>
     </FormPage>
   );
@@ -134,13 +135,13 @@ const DetailsTab: React.FC<{
               alt={currentOrganization.name}
             />
           ) : (
-            <div className="w-40 h-40 bg-gray-200 rounded-full flex items-center justify-center">
-              <Icon symbol="company" size={100} color="gray-400" />
+            <div className="w-40 h-40 bg-neutral-200 rounded-full flex items-center justify-center">
+              <Icon symbol="company" size={100} color="neutral-400" />
             </div>
           )}
           {isPersonal && (
             <div
-              className="absolute -bottom-1 -right-1 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center"
+              className="absolute -bottom-1 -right-1 w-8 h-8 bg-neutral-800 rounded-full flex items-center justify-center"
               title={translate('pages.organizations.manage.hints.ownership')}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -261,7 +262,7 @@ const MembersTab: React.FC<{
         {!isPersonal && <InviteGuest currentOrganization={currentOrganization} onMemberChange={refetchMembers} />}
         <div>
           {members.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-neutral-500">
               {translate('pages.organizations.edit.tabs.members.empty')}
             </div>
           ) : (
@@ -300,12 +301,12 @@ const MemberCard: React.FC<{
 
   return (
     <div
-      className={`relative p-2 rounded-lg ${isSelf ? 'border-blue-400 border-3' : isGuestUser ? 'border-gray-400 border-3' : 'border-gray-200 border'}`}
+      className={`relative p-2 rounded-lg ${isSelf ? 'border-brand-primary-500 border-3' : isGuestUser ? 'border-neutral-400 border-3' : 'border-neutral-200 border'}`}
     >
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mt-2 mb-1">
-            <Icon id="member_icon" symbol={isPerson ? 'user' : 'robot'} size={24} color="gray-600" />
+            <Icon id="member_icon" symbol={isPerson ? 'user' : 'robot'} size={24} color="neutral-600" />
             <p className="font-medium">
               {member.name?.firstName} {member.name?.lastName}
             </p>
@@ -313,27 +314,27 @@ const MemberCard: React.FC<{
               <Tag
                 className="absolute -top-3 left-4 text-xs"
                 label={translate('pages.organizations.edit.tabs.members.labels.self')}
-                color="blue"
+                color="brand-primary"
               />
             )}
             {isGuestUser && (
               <Tag
                 className="absolute -top-3 left-4 text-xs"
                 label={translate('pages.organizations.edit.tabs.members.labels.unregistered')}
-                color="gray"
+                color="neutral"
               />
             )}
           </div>
           {member.emailAddress && (
             <div className="flex items-center gap-2 flex-wrap text-xs">
-              <label className="font-medium text-gray-600 dark:text-gray-400">
+              <label className="font-medium text-neutral-600 dark:text-neutral-400">
                 {translate('pages.organizations.edit.tabs.members.labels.email_address')}:
               </label>
-              <p className="text-gray-600">{member.emailAddress}</p>
+              <p className="text-neutral-600">{member.emailAddress}</p>
             </div>
           )}
           <div className="flex items-center gap-2 flex-wrap text-xs">
-            <label className="font-medium text-gray-600 dark:text-gray-400">
+            <label className="font-medium text-neutral-600 dark:text-neutral-400">
               {translate('pages.organizations.edit.tabs.members.labels.roles')}:
             </label>
             <div className="flex flex-wrap gap-1">
@@ -508,14 +509,14 @@ const InviteGuest: React.FC<{
           title={translate('pages.organizations.edit.tabs.members.hints.refresh')}
           onClick={onMemberChange}
         >
-          <Icon symbol="repeat" size={16} color="secondary" />
+          <Icon symbol="repeat" size={16} color="brand-secondary" />
         </Button>
       </div>
       {!showInviteForm ? (
         <div className="text-right">
           <Button
             id="invite_toggle"
-            variant={'primary'}
+            variant={'brand-primary'}
             label={translate('pages.organizations.edit.tabs.members.invite_form.toggle.show')}
             onClick={() => setShowInviteForm(true)}
           />
@@ -523,7 +524,7 @@ const InviteGuest: React.FC<{
       ) : (
         <FormAction
           id="invite"
-          className="border rounded-lg border-gray-200"
+          className="border rounded-lg border-neutral-200"
           action={inviteMember}
           expectedErrorMessages={{
             [InviteMemberToOrganizationErrorCodes.personal_organization]: translate(
@@ -554,7 +555,7 @@ const InviteGuest: React.FC<{
               <Button
                 id="invite_cancel"
                 size={'sm'}
-                variant={'secondary'}
+                variant={'brand-secondary'}
                 label={translate('pages.organizations.edit.tabs.members.invite_form.toggle.cancel')}
                 onClick={() => setShowInviteForm(false)}
               />

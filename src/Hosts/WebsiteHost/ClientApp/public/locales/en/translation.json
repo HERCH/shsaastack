@@ -1,5 +1,6 @@
 {
   "app": {
+    "name": "SaaStack",
     "languages": {
       "en": "English",
       "fr": "French"
@@ -92,7 +93,7 @@
       },
       "home_authenticated": {
         "links": {
-          "search_cars": "Find a Car",
+          "search_cars": "Search Cars",
           "reserve_car": "Reserve Car"
         }
       }
@@ -360,6 +361,43 @@
         "links": {
           "home": "Go Home"
         }
+      },
+      "oauth2_authorize": {
+        "title": "Authorize User",
+        "loader": "Authorizing",
+        "states": {
+          "redirected": {
+            "title": "Redirecting you to the appropriate page"
+          }
+        },
+        "errors": {
+          "bad_request": "This was request was invalid, or the application is not configured correctly, please check the parameters. More details: {{error}}"
+        }
+      },
+      "oauth2_consent_client": {
+        "title": "Authorize Application",
+        "loader": "Loading application details...",
+        "header": {
+          "title": "Let this app access your info?"
+        },
+        "labels": {
+          "permissions": "{{appName}} needs your permission to:",
+          "scopes": {
+            "openid": "Verify your identity",
+            "profile": "View your basic profile",
+            "email": "View your email address"
+          },
+          "security": {
+            "title": "Security Notice",
+            "message": "Only authorize applications you trust. You can revoke access at any time from your account settings."
+          },
+          "privacy_notice": "By authorizing, you agree to share the requested information with this application."
+        },
+        "actions": {
+          "authorize": "Accept",
+          "authorizing": "Authorizing...",
+          "deny": "Deny"
+        }
       }
     },
     "bookings": {
@@ -514,12 +552,13 @@
       "new": {
         "title": "New Organization",
         "links": {
-          "organizations": "Back to Organizations"
+          "organizations": "Back to Organizations",
+          "logout": "Logout"
         },
         "messages": {
           "confirmation": {
             "title": "Organization Created",
-            "message": "Your organization has been created, but you will first need to logout and sign in again to access it."
+            "message": "Your organization has been created, but you will first need to <1>{{logout}}</1> and then sign back in to access it."
           }
         },
         "errors": {

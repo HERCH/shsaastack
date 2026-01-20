@@ -14,11 +14,19 @@ public class OAuth2ClientApplication : IOAuth2ClientApplication
         _identityServerProvider = identityServerProvider;
     }
 
-    public async Task<Result<OAuth2ClientConsent, Error>> ConsentToClientAsync(ICallerContext caller,
-        string clientId, string? scope, bool consented, CancellationToken cancellationToken)
+    public async Task<Result<OAuth2Client, Error>> ChangeClientLogoAsync(ICallerContext caller, string id,
+        FileUpload upload, CancellationToken cancellationToken)
+    {
+        return await _identityServerProvider.OAuth2ClientService.ChangeClientLogoAsync(caller, id, upload,
+            cancellationToken);
+    }
+
+    public async Task<Result<OAuth2ClientConsentResult, Error>> ConsentToClientAsync(ICallerContext caller,
+        string clientId, string redirectUri, string scope, bool consented, CancellationToken cancellationToken)
     {
         var userId = caller.CallerId;
-        return await _identityServerProvider.OAuth2ClientService.ConsentToClientAsync(caller, clientId, userId, scope,
+        return await _identityServerProvider.OAuth2ClientService.ConsentToClientAsync(caller, clientId, userId,
+            redirectUri, scope,
             consented, cancellationToken);
     }
 
@@ -35,6 +43,13 @@ public class OAuth2ClientApplication : IOAuth2ClientApplication
         return await _identityServerProvider.OAuth2ClientService.DeleteClientAsync(caller, id, cancellationToken);
     }
 
+    public async Task<Result<OAuth2Client, Error>> DeleteClientLogoAsync(ICallerContext caller, string id,
+        CancellationToken cancellationToken)
+    {
+        return await _identityServerProvider.OAuth2ClientService.DeleteClientLogoAsync(caller, id,
+            cancellationToken);
+    }
+
     public async Task<Result<OAuth2ClientWithSecrets, Error>> GetClientAsync(ICallerContext caller, string id,
         CancellationToken cancellationToken)
     {
@@ -46,6 +61,16 @@ public class OAuth2ClientApplication : IOAuth2ClientApplication
     {
         var userId = caller.CallerId;
         return await _identityServerProvider.OAuth2ClientService.GetConsentAsync(caller, clientId, userId,
+            cancellationToken);
+    }
+
+    public async Task<Result<OAuth2ClientConsentStatus, Error>> HasUserConsentedClientAsync(ICallerContext caller,
+        string clientId, string scope,
+        CancellationToken cancellationToken)
+    {
+        var userId = caller.CallerId;
+        return await _identityServerProvider.OAuth2ClientService.HasUserConsentedClientAsync(caller, clientId, userId,
+            scope,
             cancellationToken);
     }
 

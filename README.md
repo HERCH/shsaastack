@@ -218,9 +218,16 @@ The starter template also takes care of these specific kinds of things:
 
 ## Try it out yourself!
 
-1. Download and explore the codebase and documentation (don't fork, start fresh instead)
+1. Install the following platforms:
 
-    ```bash
+    * .NET8.0 SDK (specifically version 8.0.19). Available for [Windows x64 Download](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.413-windows-x64-installer), or [MacOS x64 Download](dotnet-sdk-8.0.413-osx-x64.pkg)
+    *  Node.js (22.12.0 LTS or later), available for [Download](https://nodejs.org/en/download/)
+
+2. Download, explore, build, run and test the codebase and documentation. DO NOT fork! Start from the template instead.
+
+    * On Windows:
+
+    ```cmd
     git clone https://github.com/SaaStacked/saastack.git
     ren saastack yourproductname
     cd yourproductname
@@ -231,7 +238,20 @@ The starter template also takes care of these specific kinds of things:
     git commit -m "Initial commit for MyProduct"
     ```
 
-2. Open the solution in your favorite IDE (we recommend JetBrains Rider)
+    * On MacOS/Linux:
+
+    ```bash
+    git clone https://github.com/SaaStacked/saastack.git
+    mv saastack yourproductname
+    cd yourproductname
+    rm -rf .git
+    git config --global init.defaultBranch main
+    git init
+    git add .
+    git commit -m "Initial commit for MyProduct"
+    ```
+
+3. Open the solution in your favorite IDE (we recommend JetBrains Rider)
 
     ```bash
     rider src/SaaStack.sln

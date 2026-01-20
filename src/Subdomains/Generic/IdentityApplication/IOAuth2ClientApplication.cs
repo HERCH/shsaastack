@@ -6,8 +6,11 @@ namespace IdentityApplication;
 
 public interface IOAuth2ClientApplication
 {
-    Task<Result<OAuth2ClientConsent, Error>> ConsentToClientAsync(ICallerContext caller, string clientId,
-        string? scope, bool consented, CancellationToken cancellationToken);
+    Task<Result<OAuth2Client, Error>> ChangeClientLogoAsync(ICallerContext caller, string id, FileUpload upload,
+        CancellationToken cancellationToken);
+
+    Task<Result<OAuth2ClientConsentResult, Error>> ConsentToClientAsync(ICallerContext caller, string clientId,
+        string redirectUri, string scope, bool consented, CancellationToken cancellationToken);
 
     Task<Result<OAuth2Client, Error>> CreateClientAsync(ICallerContext caller, string name, string? redirectUri,
         CancellationToken cancellationToken);
@@ -15,10 +18,17 @@ public interface IOAuth2ClientApplication
     Task<Result<Error>> DeleteClientAsync(ICallerContext caller, string id,
         CancellationToken cancellationToken);
 
+    Task<Result<OAuth2Client, Error>> DeleteClientLogoAsync(ICallerContext caller, string id,
+        CancellationToken cancellationToken);
+
     Task<Result<OAuth2ClientWithSecrets, Error>> GetClientAsync(ICallerContext caller, string id,
         CancellationToken cancellationToken);
 
     Task<Result<OAuth2ClientConsent, Error>> GetConsentAsync(ICallerContext caller, string clientId,
+        CancellationToken cancellationToken);
+
+    Task<Result<OAuth2ClientConsentStatus, Error>> HasUserConsentedClientAsync(ICallerContext caller, string clientId,
+        string scope,
         CancellationToken cancellationToken);
 
     Task<Result<OAuth2ClientWithSecret, Error>> RegenerateClientSecretAsync(ICallerContext caller, string id,

@@ -7,6 +7,7 @@ import Alert from '../../../framework/components/alert/Alert.tsx';
 import FormPage from '../../../framework/components/form/FormPage.tsx';
 import Loader from '../../../framework/components/loader/Loader.tsx';
 import PageAction, { PageActionRef } from '../../../framework/components/page/PageAction.tsx';
+import { RoutePaths } from '../../../framework/constants.ts';
 import { recorder } from '../../../framework/recorder.ts';
 import { LoginSsoAction, LoginSsoErrors } from '../actions/loginSso.ts';
 import {
@@ -81,7 +82,7 @@ export const SsoLoginPage: React.FC<SsoLoginPageProps> = ({
         `&redirect_uri=${redirectUri}` +
         `&scope=${scope}` +
         `&state=${state}` +
-        (codeChallenge ? `&code_challenge=${codeChallenge}&code_challenge_method=S256` : '');
+        (codeChallenge ? `&code_challenge=${codeChallenge}&code_challenge_method=S256` : ''); // no browser history
     }
 
     if (pkce) {
@@ -151,7 +152,12 @@ interface AuthenticateHandlerProps {
 }
 
 function HandleProviderAuthorizationBusy({ translate, providerName }: HandlerProps) {
-  return <Loader type="page" message={translate('pages.identity.sso_login.loaders.authorizing', { provider: providerName })} />;
+  return (
+    <Loader
+      type="page"
+      message={translate('pages.identity.sso_login.loaders.authorizing', { provider: providerName })}
+    />
+  );
 }
 
 function HandleAuthorizationError({ translate, providerName, oAuth2Error, oAuth2ErrorDescription }: HandlerProps) {
@@ -165,9 +171,7 @@ function HandleAuthorizationError({ translate, providerName, oAuth2Error, oAuth2
           title={translate('pages.identity.sso_login.errors.oauth2', { provider: providerName, error })}
           message={oAuth2ErrorDescription}
         />
-        <Link to="/" className="btn btn-secondary">
-          {translate('pages.identity.sso_login.links.home')}
-        </Link>
+        <Link to={RoutePaths.Home}>{translate('pages.identity.sso_login.links.home')}</Link>
       </div>
     </FormPage>
   );
@@ -205,9 +209,7 @@ function HandleAuthentication({
               })}
               message={errorMessage}
             />
-            <Link to="/" className="btn btn-secondary">
-              {translate('pages.identity.sso_login.links.home')}
-            </Link>
+            <Link to={RoutePaths.Home}>{translate('pages.identity.sso_login.links.home')}</Link>
           </div>
         </FormPage>
       );
@@ -243,9 +245,7 @@ function HandleAuthentication({
         ref={authenticateTrigger}
       />
       <div className="text-center space-y-4">
-        <Link to="/" className="btn btn-secondary">
-          {translate('pages.identity.sso_login.links.home')}
-        </Link>
+        <Link to={RoutePaths.Home}>{translate('pages.identity.sso_login.links.home')}</Link>
       </div>
     </FormPage>
   );

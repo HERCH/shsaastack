@@ -1,36 +1,95 @@
 using Application.Interfaces;
 using Application.Resources.Shared;
+using Common;
+using Common.Extensions;
 using IdentityApplication;
+using IdentityDomain;
 using Infrastructure.Interfaces;
 using Infrastructure.Web.Api.Common.Extensions;
 using Infrastructure.Web.Api.Interfaces;
 using Infrastructure.Web.Api.Operations.Shared.Identities;
+using Microsoft.AspNetCore.Http;
 
 namespace IdentityInfrastructure.Api.OAuth2;
 
 public class ClientsApi : IWebApiService
 {
     private readonly ICallerContextFactory _callerFactory;
+    private readonly IFileUploadService _fileUploadService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IOAuth2ClientApplication _oauth2ClientApplication;
 
-    public ClientsApi(ICallerContextFactory callerFactory, IOAuth2ClientApplication oauth2ClientApplication)
+    public ClientsApi(IHttpContextAccessor httpContextAccessor, IFileUploadService fileUploadService,
+        ICallerContextFactory callerFactory, IOAuth2ClientApplication oauth2ClientApplication)
     {
+        _httpContextAccessor = httpContextAccessor;
+        _fileUploadService = fileUploadService;
         _callerFactory = callerFactory;
         _oauth2ClientApplication = oauth2ClientApplication;
     }
 
-    public async Task<ApiPostResult<OAuth2ClientConsent, GetOAuth2ClientConsentResponse>> ConsentClientForCaller(
+    public async Task<ApiPutPatchResult<OAuth2Client, GetOAuth2ClientResponse>> ChangeClientLogo(
+        ChangeOAuth2ClientLogoRequest request, CancellationToken cancellationToken)
+    {
+        var httpRequest = _httpContextAccessor.HttpContext!.Request;
+        var uploaded = httpRequest.GetUploadedFile(_fileUploadService, Validations.OAuth2.Logo.MaxSizeInBytes,
+            Validations.OAuth2.Logo.AllowableContentTypes);
+        if (uploaded.IsFailure)
+        {
+            return () => uploaded.Error;
+        }
+
+        var client =
+            await _oauth2ClientApplication.ChangeClientLogoAsync(_callerFactory.Create(), request.Id!,
+                uploaded.Value, cancellationToken);
+
+        return () =>
+            client.HandleApplicationResult<OAuth2Client, GetOAuth2ClientResponse>(c =>
+                new GetOAuth2ClientResponse { Client = c });
+    }
+
+    public async Task<ApiRedirectResult<OAuth2ClientConsent, GetOAuth2ClientConsentResponse>> ConsentClientForCaller(
         ConsentOAuth2ClientForCallerRequest request, CancellationToken cancellationToken)
     {
         var consented = await _oauth2ClientApplication.ConsentToClientAsync(
             _callerFactory.Create(),
             request.Id!,
-            request.Scope,
+            request.RedirectUri!,
+            request.Scope!,
             request.Consented,
             cancellationToken);
 
-        return () => consented.HandleApplicationResult<OAuth2ClientConsent, GetOAuth2ClientConsentResponse>(c =>
-            new PostResult<GetOAuth2ClientConsentResponse>(new GetOAuth2ClientConsentResponse { Consent = c }));
+        if (request.RedirectUri.HasNoValue())
+        {
+            return () =>
+                Error.Validation(Resources
+                    .ClientsApi_ConsentClientForCaller_RedirectUriMissing); //Should never get here
+        }
+
+        if (consented.IsFailure)
+        {
+            return () => consented.Error;
+        }
+
+        if (consented.Value.Consent.Exists()
+            && consented.Value.Consent.IsConsented)
+        {
+            var consent = consented.Value.Consent;
+            return () => new RedirectResult<GetOAuth2ClientConsentResponse>(new GetOAuth2ClientConsentResponse
+                { Consent = consent });
+        }
+
+        var error = consented.Value.DenyError!.Value;
+        var errorCode = error.AdditionalCode.HasValue()
+            ? error.AdditionalCode
+            : error.Code.ToString();
+        var stateParam = request.State.HasValue()
+            ? $"&state={request.State}"
+            : string.Empty;
+        var redirectUri =
+            $"{request.RedirectUri.WithoutTrailingSlash()}?error={errorCode}&error_description={error.Message}{stateParam}";
+        return () =>
+            new RedirectResult<GetOAuth2ClientConsentResponse>(new GetOAuth2ClientConsentResponse(), redirectUri);
     }
 
     public async Task<ApiPostResult<OAuth2Client, GetOAuth2ClientResponse>> CreateClient(
@@ -55,6 +114,17 @@ public class ClientsApi : IWebApiService
         return () => deleted.HandleApplicationResult();
     }
 
+    public async Task<ApiResult<OAuth2Client, GetOAuth2ClientResponse>> DeleteClientLogo(
+        DeleteOAuth2ClientLogoRequest request, CancellationToken cancellationToken)
+    {
+        var client = await _oauth2ClientApplication.DeleteClientLogoAsync(_callerFactory.Create(), request.Id!,
+            cancellationToken);
+
+        return () =>
+            client.HandleApplicationResult<OAuth2Client, GetOAuth2ClientResponse>(c =>
+                new GetOAuth2ClientResponse { Client = c });
+    }
+
     public async Task<ApiGetResult<OAuth2ClientWithSecrets, GetOAuth2ClientWithSecretsResponse>> GetClient(
         GetOAuth2ClientRequest request, CancellationToken cancellationToken)
     {
@@ -77,6 +147,19 @@ public class ClientsApi : IWebApiService
             consent.HandleApplicationResult<OAuth2ClientConsent, GetOAuth2ClientConsentResponse>(c =>
                 new GetOAuth2ClientConsentResponse
                     { Consent = c });
+    }
+
+    public async Task<ApiGetResult<OAuth2ClientConsentStatus, GetOAuth2ClientConsentStatusResponse>>
+        HasUserConsentedClient(
+            GetOAuth2ClientConsentStatusForCallerRequest request, CancellationToken cancellationToken)
+    {
+        var status = await _oauth2ClientApplication.HasUserConsentedClientAsync(
+            _callerFactory.Create(), request.Id!, request.Scope!, cancellationToken);
+
+        return () =>
+            status.HandleApplicationResult<OAuth2ClientConsentStatus, GetOAuth2ClientConsentStatusResponse>(s =>
+                new GetOAuth2ClientConsentStatusResponse
+                    { Status = s });
     }
 
     public async Task<ApiPostResult<OAuth2ClientWithSecret, RegenerateOAuth2ClientSecretResponse>>
@@ -109,8 +192,8 @@ public class ClientsApi : IWebApiService
         var clients = await _oauth2ClientApplication.SearchAllClientsAsync(
             _callerFactory.Create(), request.ToSearchOptions(), request.ToGetOptions(), cancellationToken);
 
-        return () => clients.HandleApplicationResult<SearchResults<OAuth2Client>, SearchAllOAuth2ClientsResponse>(
-            c => new SearchAllOAuth2ClientsResponse
+        return () => clients.HandleApplicationResult<SearchResults<OAuth2Client>, SearchAllOAuth2ClientsResponse>(c =>
+            new SearchAllOAuth2ClientsResponse
             {
                 Clients = c.Results,
                 Metadata = c.Metadata
