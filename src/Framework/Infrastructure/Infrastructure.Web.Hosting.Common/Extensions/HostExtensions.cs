@@ -143,6 +143,8 @@ public static class HostExtensions
             appBuilder.Configuration.AddJsonFile("appsettings.Azure.json", true);
 #elif HOSTEDONAWS
             appBuilder.Configuration.AddJsonFile("appsettings.AWS.json", true);
+#elif HOSTEDONPREMISE
+            appBuilder.Configuration.AddJsonFile("appsettings.OnPremise.json", true);
 #endif
             appBuilder.Configuration.AddJsonFile("appsettings.External.json", true);
             appBuilder.Configuration.AddJsonFile("appsettings.local.json", true);
@@ -564,6 +566,9 @@ public static class HostExtensions
 
             // Register RabbitMQ store if enabled in configuration
             services.RegisterRabbitMQStoreIfEnabled(appBuilder.Configuration, isMultiTenanted);
+
+            // Register SQL Server store if enabled in configuration
+            services.RegisterSqlServerStoreIfEnabled(appBuilder.Configuration, isMultiTenanted);
 
 #if TESTINGONLY
             // Fallback to testing store if RabbitMQ is not enabled

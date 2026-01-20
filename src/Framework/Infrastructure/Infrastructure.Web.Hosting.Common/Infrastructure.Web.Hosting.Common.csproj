@@ -15,6 +15,7 @@
         <ProjectReference Include="..\..\..\ExternalAdapters\Infrastructure.External.Persistence.TestingOnly\Infrastructure.External.Persistence.TestingOnly.csproj" />
         <ProjectReference Include="..\Infrastructure.Hosting.Common\Infrastructure.Hosting.Common.csproj" />
         <ProjectReference Include="..\Infrastructure.Hosting.Common.RabbitMQ\Infrastructure.Hosting.Common.RabbitMQ.csproj" />
+        <ProjectReference Include="..\Infrastructure.Persistence.SqlServer\Infrastructure.Persistence.SqlServer.csproj" />
         <ProjectReference Include="..\..\..\Subdomains\Shared\Infrastructure.Shared\Infrastructure.Shared.csproj" />
         <ProjectReference Include="..\Infrastructure.Web.Common\Infrastructure.Web.Common.csproj" />
     </ItemGroup>

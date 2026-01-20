@@ -44,6 +44,8 @@ public abstract class CSRFController : Controller
             IsHostedOn = "AZURE",
 #elif HOSTEDONAWS
             IsHostedOn = "AWS",
+#elif HOSTEDONPREMISE
+            IsHostedOn = "ONPREMISE",
 #else
             IsHostedOn = "UNKNOWN",
 #endif
