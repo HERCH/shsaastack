@@ -40,10 +40,14 @@ jobs:
         run: dotnet build --configuration ${{env.TESTINGONLY_BUILD_CONFIGURATION}} "${{env.SOLUTION_PATH}}" -p:HostingPlatform=HOSTEDONAWS
       - name: Build (Backend) for Azure Testing
         run: dotnet build --configuration ${{env.TESTINGONLY_BUILD_CONFIGURATION}} "${{env.SOLUTION_PATH}}" -p:HostingPlatform=HOSTEDONAZURE
+      - name: Build (Backend) for OnPremise Testing
+        run: dotnet build --configuration ${{env.TESTINGONLY_BUILD_CONFIGURATION}} "${{env.SOLUTION_PATH}}" -p:HostingPlatform=HOSTEDONPREMISE
       - name: Build (Backend) for Azure Deploy
         run: dotnet build --configuration ${{env.DEPLOY_BUILD_CONFIGURATION}} "${{env.SOLUTION_PATH}}" -p:HostingPlatform=HOSTEDONAZURE
       - name: Build (Backend) for AWS Deploy
         run: dotnet build --configuration ${{env.DEPLOY_BUILD_CONFIGURATION}} "${{env.SOLUTION_PATH}}" -p:HostingPlatform=HOSTEDONAWS
+      - name: Build (Backend) for OnPremise Deploy
+        run: dotnet build --configuration ${{env.DEPLOY_BUILD_CONFIGURATION}} "${{env.SOLUTION_PATH}}" -p:HostingPlatform=HOSTEDONPREMISE
       - name: Unit Test (Backend)
         uses: nick-fields/retry@v2
         with:

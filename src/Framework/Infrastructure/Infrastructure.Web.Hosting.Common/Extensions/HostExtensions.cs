@@ -143,6 +143,8 @@ public static class HostExtensions
             appBuilder.Configuration.AddJsonFile("appsettings.Azure.json", true);
 #elif HOSTEDONAWS
             appBuilder.Configuration.AddJsonFile("appsettings.AWS.json", true);
+#elif HOSTEDONPREMISE
+            appBuilder.Configuration.AddJsonFile("appsettings.OnPremise.json", true);
 #endif
             appBuilder.Configuration.AddJsonFile("appsettings.External.json", true);
             appBuilder.Configuration.AddJsonFile("appsettings.local.json", true);
