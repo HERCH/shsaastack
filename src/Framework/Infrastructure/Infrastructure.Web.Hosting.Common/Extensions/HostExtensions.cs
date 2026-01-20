@@ -567,6 +567,9 @@ public static class HostExtensions
             // Register RabbitMQ store if enabled in configuration
             services.RegisterRabbitMQStoreIfEnabled(appBuilder.Configuration, isMultiTenanted);
 
+            // Register SQL Server store if enabled in configuration
+            services.RegisterSqlServerStoreIfEnabled(appBuilder.Configuration, isMultiTenanted);
+
 #if TESTINGONLY
             // Fallback to testing store if RabbitMQ is not enabled
             TestingOnlyHostExtensions.RegisterStoreForTestingOnly(services, usesQueues, isMultiTenanted);
