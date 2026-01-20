@@ -3,6 +3,7 @@ using System.Text.Json;
 using Application.Persistence.Interfaces;
 using Common;
 using Dapper;
+using Domain.Interfaces;
 using Infrastructure.Persistence.Interfaces;
 using QueryAny;
 
@@ -230,19 +231,17 @@ partial class SqlServerStore : IDataStore
 
     private static QueryEntity DeserializeEntity(string json, PersistedEntityMetadata metadata)
     {
-        var properties = JsonSerializer.Deserialize<Dictionary<string, object>>(json, JsonOptions);
-        var entity = QueryEntity.FromHydrationProperties(
-            HydrationProperties.FromDictionary(properties ?? new Dictionary<string, object>()),
-            metadata);
+        var properties = JsonSerializer.Deserialize<Dictionary<string, object?>>(json, JsonOptions);
+        var hydrationProperties = new HydrationProperties(properties ?? new Dictionary<string, object?>());
+        var entity = QueryEntity.FromHydrationProperties(hydrationProperties, metadata);
         return entity;
     }
 
     private static CommandEntity DeserializeCommandEntity(string json, PersistedEntityMetadata metadata)
     {
-        var properties = JsonSerializer.Deserialize<Dictionary<string, object>>(json, JsonOptions);
-        var entity = CommandEntity.FromHydrationProperties(
-            HydrationProperties.FromDictionary(properties ?? new Dictionary<string, object>()),
-            metadata);
+        var properties = JsonSerializer.Deserialize<Dictionary<string, object?>>(json, JsonOptions);
+        var hydrationProperties = new HydrationProperties(properties ?? new Dictionary<string, object?>());
+        var entity = CommandEntity.FromHydrationProperties(hydrationProperties, metadata);
         return entity;
     }
 

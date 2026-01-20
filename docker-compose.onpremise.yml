@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # SQL Server for on-premise persistence testing
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: saastack-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "YourStrong!Passw0rd"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - saastack-network
+
+  # RabbitMQ for message broker testing
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: saastack-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: "app_user"
+      RABBITMQ_DEFAULT_PASS: "app_password"
+      RABBITMQ_DEFAULT_VHOST: "/saastack"
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - saastack-network
+
+volumes:
+  sqlserver-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+
+networks:
+  saastack-network:
+    driver: bridge

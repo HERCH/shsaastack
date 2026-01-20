@@ -7,7 +7,7 @@ namespace Infrastructure.Hosting.Common.RabbitMQ;
 /// <summary>
 ///     Provides settings for RabbitMQ
 /// </summary>
-public class RabbitMQSettings : ISettings
+public class RabbitMQSettings
 {
     public RabbitMQSettings()
     {

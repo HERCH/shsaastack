@@ -60,9 +60,12 @@ public class CSRFControllerSpec
         var model = view.Model.As<IndexSpaPage>();
 #if HOSTEDONAZURE
         model.IsHostedOn.Should().Be("AZURE");
-#endif
-#if HOSTEDONAWS
+#elif HOSTEDONAWS
         model.IsHostedOn.Should().Be("AWS");
+#elif HOSTEDONPREMISE
+        model.IsHostedOn.Should().Be("ONPREMISE");
+#else
+        model.IsHostedOn.Should().Be("UNKNOWN");
 #endif
         model.IsTestingOnly.Should().BeTrue();
         _csrfService.Verify(x => x.CreateTokens(Optional<string>.None));

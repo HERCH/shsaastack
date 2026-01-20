@@ -7,7 +7,7 @@ namespace Infrastructure.Persistence.SqlServer;
 /// <summary>
 ///     Provides settings for SQL Server persistence
 /// </summary>
-public class SqlServerSettings : ISettings
+public class SqlServerSettings
 {
     public SqlServerSettings()
     {
