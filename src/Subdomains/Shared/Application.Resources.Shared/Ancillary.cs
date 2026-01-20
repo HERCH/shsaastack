@@ -19,14 +19,6 @@ public class Audit : IIdentifiableResource
     public required string Id { get; set; }
 }
 
-public enum RecorderTraceLevel
-{
-    Debug = 0,
-    Information = 1,
-    Warning = 2,
-    Error = 3
-}
-
 public class DeliveredEmail : IIdentifiableResource
 {
     public List<DateTime> Attempts { get; set; } = new();
@@ -89,25 +81,6 @@ public class DeliveredSms : IIdentifiableResource
     public required List<string> Tags { get; set; }
 
     public required string ToPhoneNumber { get; set; }
-
-    public required string Id { get; set; }
-}
-
-public class EventNotification : IIdentifiableResource
-{
-    public required string Data { get; set; }
-
-    public required string EventType { get; set; }
-
-    public required string MetadataFullyQualifiedName { get; set; }
-
-    public required string RootAggregateType { get; set; }
-
-    public required string StreamName { get; set; }
-
-    public required string SubscriberRef { get; set; }
-
-    public required int Version { get; set; }
 
     public required string Id { get; set; }
 }

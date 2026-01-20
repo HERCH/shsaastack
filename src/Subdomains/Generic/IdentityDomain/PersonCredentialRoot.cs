@@ -140,7 +140,7 @@ public sealed class PersonCredentialRoot : AggregateRootBase
 
         if (Registration.HasValue)
         {
-            var isEmailUnique = _emailAddressService.EnsureUniqueAsync(Registration.Value.EmailAddress, UserId)
+            var isEmailUnique = _emailAddressService.EnsureUniqueAsync(Registration.Value.EmailAddress, UserId, CancellationToken.None)
                 .GetAwaiter().GetResult();
             if (!isEmailUnique)
             {
@@ -654,9 +654,9 @@ public sealed class PersonCredentialRoot : AggregateRootBase
         }
 
         if (password.IsInvalidParameter(pwd => !_passwordHasherService.VerifyPassword(pwd, Password.PasswordHash),
-                nameof(password), Resources.PersonCredentialRoot_DuplicatePassword, out var error3))
+                nameof(password), Resources.PersonCredentialRoot_DuplicatePassword, out _))
         {
-            return error3;
+            return Error.EntityExists(Resources.PersonCredentialRoot_DuplicatePassword);
         }
 
         if (!IsRegistrationVerified)

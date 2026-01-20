@@ -7,6 +7,7 @@ using Application.Services.Shared;
 using Common;
 using Common.Configuration;
 using Common.Extensions;
+using Common.FeatureFlags;
 using Common.Recording;
 using Domain.Common;
 using Domain.Common.Identity;
@@ -18,6 +19,7 @@ using Domain.Shared;
 using Infrastructure.Common;
 using Infrastructure.Common.Extensions;
 using Infrastructure.Common.Recording;
+using Infrastructure.Eventing.Common;
 using Infrastructure.Eventing.Common.Notifications;
 using Infrastructure.Eventing.Common.Projections.ReadModels;
 using Infrastructure.Eventing.Interfaces.Notifications;
@@ -40,11 +42,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 #if TESTINGONLY
 using Domain.Events.Shared.TestingOnly;
-using Common.FeatureFlags;
 using Infrastructure.External.TestingOnly.ApplicationServices;
 #endif
 
@@ -73,7 +75,7 @@ public static class HostExtensions
         RegisterApiRequests();
         RegisterApiDocumentation(hostOptions.HostName, hostOptions.HostVersion, hostOptions.UsesApiDocumentation);
         RegisterNotifications(hostOptions.UsesNotifications);
-        RegisterApplicationServices(hostOptions.IsMultiTenanted,
+        RegisterApplicationServices(hostOptions.HostName, hostOptions.IsBackendForFrontEnd, hostOptions.IsMultiTenanted,
             hostOptions.ReceivesWebhooks);
         RegisterPersistence(hostOptions.Persistence.UsesQueues, hostOptions.IsMultiTenanted);
         RegisterEventing(hostOptions.Persistence.UsesEventing);
@@ -112,11 +114,26 @@ public static class HostExtensions
             services.AddSingleton<ICrashReporter, NoOpCrashReporter>();
             services.AddSingleton<IMetricReporter, NoOpMetricReporter>();
 #if TESTINGONLY
+            services.AddSingleton<IAuditReporter>(c => new QueuedAuditReporter(
+                c.GetRequiredService<IHostSettings>(),
+                c.GetRequiredService<IMessageQueueMessageIdFactory>(),
+                c.GetRequiredServiceForPlatform<IQueueStore>())); // Uses LocalMachineJsonFileStore
+            services.AddSingleton<IUsageReporter>(c => new QueuedUsageReporter(
+                c.GetRequiredService<IHostSettings>(),
+                c.GetRequiredService<IMessageQueueMessageIdFactory>(),
+                c.GetRequiredServiceForPlatform<IQueueStore>())); // Uses LocalMachineJsonFileStore
+#else
+            services.AddSingleton<IAuditReporter, NoOpAuditReporter>();
+            services.AddSingleton<IUsageReporter, NoOpUsageReporter>();
+#endif
+#if TESTINGONLY
             services.AddSingleton<IFeatureFlags>(c => new FakeFeatureFlagProviderServiceClient(
                 c.GetRequiredService<IRecorder>(),
                 c.GetRequiredServiceForPlatform<IConfigurationSettings>(),
                 c.GetRequiredService<IHttpClientFactory>(),
                 c.GetRequiredService<JsonSerializerOptions>()));
+#else
+            services.AddSingleton<IFeatureFlags, EmptyFeatureFlags>();
 #endif
         }
 
@@ -127,7 +144,7 @@ public static class HostExtensions
 #elif HOSTEDONAWS
             appBuilder.Configuration.AddJsonFile("appsettings.AWS.json", true);
 #endif
-            appBuilder.Configuration.AddJsonFile("appsettings.Technology.json", true);
+            appBuilder.Configuration.AddJsonFile("appsettings.External.json", true);
             appBuilder.Configuration.AddJsonFile("appsettings.local.json", true);
 
             if (isMultiTenanted)
@@ -419,7 +436,7 @@ public static class HostExtensions
                 services.AddSingleton<IWebsiteUiService, WebsiteUiService>();
                 services.AddSingleton<IUserNotificationsService>(c =>
                     new MessageUserNotificationsService(c.GetRequiredServiceForPlatform<IConfigurationSettings>(),
-                        c.GetRequiredService<IHostSettings>(), c.GetRequiredService<IWebsiteUiService>(),
+                        c.GetRequiredService<IWebsiteUiService>(),
                         c.GetRequiredService<IEmailSchedulingService>(),
                         c.GetRequiredService<ISmsSchedulingService>()));
             }
@@ -453,12 +470,36 @@ public static class HostExtensions
             services.ConfigureHttpXmlOptions(options => { options.SerializerOptions.WriteIndented = false; });
         }
 
-        void RegisterApplicationServices(bool isMultiTenanted, bool receivesWebhooks)
+        void RegisterApplicationServices(string hostName, bool isBackendForFrontEnd, bool isMultiTenanted,
+            bool receivesWebhooks)
         {
-            services.AddHttpClient();
-            var prefixes = modules.EntityPrefixes;
-            prefixes.Add(typeof(Checkpoint), CheckPointAggregatePrefix);
-            services.AddSingleton<IIdentifierFactory>(_ => new HostIdentifierFactory(prefixes));
+            services.AddHttpClient(hostName);
+            services.ConfigureAll<HttpClientFactoryOptions>(options =>
+            {
+                options.HttpMessageHandlerBuilderActions.Add(builder =>
+                {
+                    builder.PrimaryHandler = new HttpClientHandler
+                    {
+                        AllowAutoRedirect = false
+                    };
+                    var container = builder.Services;
+                    builder.AdditionalHandlers.Add(new HttpClientLoggingHandler(
+                        container.GetRequiredService<IRecorder>(),
+                        container.GetRequiredService<ICallerContextFactory>()));
+                });
+            });
+
+            if (isBackendForFrontEnd)
+            {
+                services.AddSingleton<IIdentifierFactory, BeffeIdentifierFactory>();
+            }
+            else
+            {
+                var aggregatePrefixes = modules.EntityPrefixes;
+                aggregatePrefixes.Add(typeof(Checkpoint), CheckPointAggregatePrefix);
+                services.AddSingleton<IIdentifierFactory>(_ => new ApiHostIdentifierFactory(aggregatePrefixes));
+            }
+
 
             if (isMultiTenanted)
             {

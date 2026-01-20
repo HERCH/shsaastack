@@ -1,121 +1,207 @@
-import axios, { AxiosError, HttpStatusCode } from 'axios';
-import { UsageConstants } from '../constants';
+import { RoutePaths, UsageConstants } from '../constants';
 import { recorder } from '../recorder';
-import { client as apiHost1 } from './apiHost1/services.gen';
-import { logout, ProblemDetails } from './websiteHost';
-import { refreshToken, client as websiteHost } from './websiteHost/services.gen';
-
+import { ResolvedRequestOptions } from './apiHost1/client';
+import { client as apiHost1 } from './apiHost1/client.gen';
+import { logout, ProblemDetails, refreshToken } from './websiteHost';
+import { client as websiteHost } from './websiteHost/client.gen';
 
 const unRetryableRequestUrls: string[] = ['/api/auth/refresh', '/api/auth'];
-export const homePath = '/';
 
 // This function sets up the appropriate request headers and handlers,
 // as detailed in docs/design-principles/0110-back-end-for-front-end.md
 function initializeApiClient() {
   const csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribute('content');
+
+  const noIndexedArraysQuerySerializer = (params: Record<string, unknown>) => {
+    const searchParams = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+
+      if (Array.isArray(value)) {
+        // No indexes - just repeat the key for each value
+        value.forEach((v) => searchParams.append(key, String(v)));
+      } else {
+        searchParams.append(key, String(value));
+      }
+    });
+
+    return searchParams.toString();
+  };
+
   apiHost1.setConfig({
-    baseURL: `${import.meta.env.VITE_WEBSITEHOSTBASEURL}/api`,
+    baseUrl: `${import.meta.env.VITE_WEBSITEHOSTBASEURL}/api`,
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
       'anti-csrf-tok': csrfToken
     },
-    paramsSerializer: {
-      indexes: null // To prevent axios from encoding array indexes in the query string
-    }
+    throwOnError: false,
+    querySerializer: noIndexedArraysQuerySerializer
   });
   websiteHost.setConfig({
-    baseURL: `${import.meta.env.VITE_WEBSITEHOSTBASEURL}`,
+    baseUrl: `${import.meta.env.VITE_WEBSITEHOSTBASEURL}`,
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
       'anti-csrf-tok': csrfToken
     },
-    paramsSerializer: {
-      indexes: null // To prevent axios from encoding array indexes in the query string
-    }
+    throwOnError: false,
+    querySerializer: noIndexedArraysQuerySerializer
   });
 
-  apiHost1.instance.interceptors.response.use((res) => res, handleUnauthorizedResponse);
-  websiteHost.instance.interceptors.response.use((res) => res, handleUnauthorizedResponse);
+  apiHost1.interceptors.request.use((request, options) => cacheRequestBody(request, options));
+  websiteHost.interceptors.request.use((request, options) => cacheRequestBody(request, options));
+  apiHost1.interceptors.response.use((response, request, options) =>
+    handleUnauthorizedResponse(response, request, options)
+  );
+  websiteHost.interceptors.response.use((response, request, options) =>
+    handleUnauthorizedResponse(response, request, options)
+  );
+}
+
+// This interceptor clones and saves the request, so that it can be later re-sent after a retry in the response interceptor.
+async function cacheRequestBody(
+  request: Request,
+  options: ResolvedRequestOptions<'fields', boolean, string>
+): Promise<Request> {
+  // @ts-ignore
+  options._bufferedBody = undefined;
+
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    return request;
+  }
+
+  if (request.body) {
+    const cloned = request.clone();
+    let body = cloned.body;
+    if (body instanceof ReadableStream) {
+      const temp = new Response(body);
+      // @ts-ignore
+      body = await temp.arrayBuffer();
+    }
+
+    // @ts-ignore
+    options._bufferedBody = body;
+  }
+
+  return request;
 }
 
 // This handles refreshing access tokens when any request returns a 401,
 // as detailed in docs/design-principles/0110-back-end-for-front-end.md
-async function handleUnauthorizedResponse(error: AxiosError) {
-  const requestConfig = error.config;
+// Note: we should only reject the original response to halt processing for some reason,
+// otherwise resolve the response continues the chain.
+// Note: if after refreshing the token, and performing the original request again,
+// we should also resolve the retried response, effectively swapping the response.
+// If we reject the original response, then that response is thrown and caught in the useActionCommand or useActionQuery hooks catch handler.
+// Note: This interceptor is called by all generated client methods.
+// We are deliberately calling refreshToken() (a generated client method), which, if fails,
+// will call this interceptor a second time around with a 401,
+// and we are intentionally ignoring that error (as an unRetryableRequestUrls),
+// so that we can handle the response fully in the then() clause (below) of the first interceptor call.
+async function handleUnauthorizedResponse(
+  response: Response,
+  request: Request,
+  options: ResolvedRequestOptions<'fields', boolean, string>
+): Promise<Response> {
+  if (!response) {
+    return Promise.resolve(response);
+  }
+
+  if (response.ok) {
+    return Promise.resolve(response);
+  }
+
+  const error = await getResponseBody(response);
 
   //Handle 403's for CSRF
-  const problem = error as AxiosError<ProblemDetails>;
-  if (
-    error.status === HttpStatusCode.Forbidden &&
-    problem != undefined &&
-    problem.response?.data.title === 'csrf_violation'
-  ) {
+  const problem = error as ProblemDetails;
+  if (response.status === 403 && problem != undefined && problem.title === 'csrf_violation') {
     recorder.traceDebug('UnAuthorizedHandler: CSRF violation detected, reloading home page');
     forceReloadHome();
-    return Promise.reject(error);
+    return Promise.resolve(response); // should never get here, this should bypass this error altogether
   }
 
   // Only handle 401s
-  if (error.status !== HttpStatusCode.Unauthorized) {
-    return Promise.reject(error);
-  }
-
-  // Check it is an axios response (i.e. has config)
-  if (!requestConfig) {
-    return Promise.reject(error);
+  if (response.status !== 401) {
+    return Promise.resolve(response);
   }
 
   // We don't want to retry any of these API calls
-  if (unRetryableRequestUrls.includes(requestConfig.url!)) {
-    return Promise.reject(error);
+  const path = new URL(request.url).pathname;
+  if (unRetryableRequestUrls.includes(path)) {
+    return Promise.resolve(response);
   }
 
-  try {
-    recorder.traceDebug("UnAuthorizedHandler: 401 detected, refreshing user's token");
-    // Attempt to refresh the access_token cookies (if exist)
-    return await refreshToken().then(async (res) => {
-      if (axios.isAxiosError(res)) {
-        const error = res as AxiosError;
-        if (error.status === HttpStatusCode.Unauthorized || error.status === HttpStatusCode.Locked) {
-          recorder.traceDebug("UnAuthorizedHandler: Refreshing user's token returned 401, forcing logout");
-          // Access token does not exist, or Refresh token is expired, or User is locked and cannot be refreshed,
-          // or they cannot be authenticated anymore, the best we can do here is force the user to log out,
-          // remove all cookies, and force them to login again.
-          logout().then(() => forceReloadHome());
-        }
-        recorder.traceDebug("UnAuthorizedHandler: Refreshing user's token failed with error:", { error });
-        return Promise.reject(error);
-      } else {
-        recorder.traceDebug("UnAuthorizedHandler: Refreshed user's token, retrying original request");
-        recorder.trackUsage(UsageConstants.UsageScenarios.BrowserAuthRefresh);
-        // Retry the original request
-        return axios.request(requestConfig).then((res) => {
-          if (axios.isAxiosError(res)) {
-            const error = res as AxiosError;
-            if (error.status === HttpStatusCode.Unauthorized) {
-              recorder.traceDebug('UnAuthorizedHandler: Original request still returns 401, forcing logout');
-              // User is not authenticated anymore, the best we can do here is force the user to login again
-              forceReloadHome();
-              return Promise.reject(error);
-            }
-            recorder.traceDebug('UnAuthorizedHandler: Original request failed with error', { error });
-            return Promise.reject(error);
-          } else {
-            return res;
-          }
-        });
+  recorder.traceDebug("UnAuthorizedHandler: 401 detected, refreshing user's token");
+  // Attempt to refresh the access_token cookies (if exist)
+  // This request will call back to this interceptor, but will be short-circuited by the unRetryableRequestUrls check above
+  return await refreshToken().then(async (res) => {
+    if (res.response.ok) {
+      recorder.traceDebug("UnAuthorizedHandler: Refreshed user's token, retrying original request");
+      recorder.trackUsage(UsageConstants.UsageScenarios.BrowserAuthRefresh);
+      // Retry the original request (using fetch directly, not client)
+      // @ts-ignore
+      const body = options._bufferedBody;
+      const retry = await fetch(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body,
+        credentials: 'include'
+      });
+      // @ts-ignore
+      if (options._bufferedBody) {
+        // @ts-ignore
+        options._bufferedBody = undefined;
       }
-    });
-  } catch (error) {
-    return Promise.reject(error);
-  }
+      if (retry.ok) {
+        // Retrying original request now succeeds
+        return Promise.resolve(retry);
+      } else {
+        if (retry.status === 401) {
+          recorder.traceDebug('UnAuthorizedHandler: Original request still returns 401, forcing logout');
+          // Assume, the user is no-longer authenticated anymore. Best we can do here is force the user to login again
+          logout().then(() => forceReloadHome());
+          return Promise.resolve(response); // should never get here, this should bypass this error altogether
+        } else {
+          recorder.traceDebug('UnAuthorizedHandler: Original request failed with: {Error}', { error: retry.status });
+          return Promise.resolve(retry); // This response will be different from the one passed into this interceptor.
+        }
+      }
+    } else {
+      if (res.response.status === 423 || res.response.status === 401) {
+        recorder.traceDebug("UnAuthorizedHandler: Refreshing user's token returned 423, forcing logout");
+        // Access token does not exist, or Refresh token is expired, or User is locked and cannot be refreshed,
+        // or they cannot be authenticated anymore, the best we can do here is force the user to log out,
+        // remove all cookies, and force them to login again.
+        logout().then(() => forceReloadHome());
+        return Promise.resolve(response); // should never get here, this should bypass this error altogether
+      } else {
+        recorder.traceDebug("UnAuthorizedHandler: Refreshing user's token failed with: {Error}", {
+          error: res.response.status
+        });
+        return Promise.resolve(res.response); // This response will be different from the one passed into this interceptor.
+      }
+    }
+  });
 }
 
-// Send the user home, by re-fetching index.html, and refreshing CSRF token and cookie
+// Send the user home, re-fetching index.html, and refreshing CSRF token and auth cookies
 function forceReloadHome() {
-  window.location.assign(homePath);
+  window.location.assign(RoutePaths.Home); // allow browser history
+}
+
+async function getResponseBody(response: Response) {
+  const responseClone = response.clone();
+  const textBody = await responseClone.text();
+  let jsonBody: unknown = undefined;
+  try {
+    jsonBody = JSON.parse(textBody);
+  } catch {
+    //noop
+  }
+  return jsonBody ?? textBody;
 }
 
 export { initializeApiClient };

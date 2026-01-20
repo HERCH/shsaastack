@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import Alert from './Alert';
 
-
 describe('Alert', () => {
   it('when no message and no children are provided, renders nothing', () => {
     const { container } = render(<Alert id="anid" />);
@@ -47,32 +46,32 @@ describe('Alert', () => {
     render(<Alert id="anid" message="amessage" />);
 
     const alertElement = screen.getByTestId('anid_alert');
-    expect(alertElement.className).toContain('border-blue-600');
-    expect(alertElement.className).toContain('bg-blue-100');
+    expect(alertElement.className).toContain('border-info-600');
+    expect(alertElement.className).toContain('bg-info-100');
   });
 
   it('applies correct styles for error type', () => {
     render(<Alert id="anid" type="error" message="Error message" />);
 
     const alertElement = screen.getByTestId('anid_alert');
-    expect(alertElement.className).toContain('border-red-600');
-    expect(alertElement.className).toContain('bg-red-100');
+    expect(alertElement.className).toContain('border-error-600');
+    expect(alertElement.className).toContain('bg-error-100');
   });
 
   it('applies correct styles for success type', () => {
     render(<Alert id="anid" type="success" message="Success message" />);
 
     const alertElement = screen.getByTestId('anid_alert');
-    expect(alertElement.className).toContain('border-green-600');
-    expect(alertElement.className).toContain('bg-green-100');
+    expect(alertElement.className).toContain('border-success-600');
+    expect(alertElement.className).toContain('bg-success-100');
   });
 
   it('applies correct styles for warning type', () => {
     render(<Alert id="anid" type="warning" message="Warning message" />);
 
     const alertElement = screen.getByTestId('anid_alert');
-    expect(alertElement.className).toContain('border-yellow-600');
-    expect(alertElement.className).toContain('bg-yellow-100');
+    expect(alertElement.className).toContain('border-warning-600');
+    expect(alertElement.className).toContain('bg-warning-100');
   });
 
   it('handles null message', () => {

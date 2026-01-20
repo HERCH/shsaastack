@@ -1,18 +1,25 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { ChangeDefaultOrganizationRequest, Organization, UpdateUserResponse } from '../../../framework/api/apiHost1';
-import { EmptyRequest } from '../../../framework/api/apiHost1/emptyRequest.ts';
+import {
+  ChangeDefaultOrganizationRequest,
+  Membership,
+  Organization,
+  OrganizationOwnership,
+  UpdateUserResponse
+} from '../../../framework/api/apiHost1';
+import { EmptyRequest } from '../../../framework/api/EmptyRequest.ts';
 import ButtonAction from '../../../framework/components/button/ButtonAction.tsx';
 import FormPage from '../../../framework/components/form/FormPage.tsx';
 import Icon from '../../../framework/components/icon/Icon.tsx';
 import PageAction, { PageActionRef } from '../../../framework/components/page/PageAction.tsx';
 import Tag from '../../../framework/components/tag/Tag.tsx';
+import { RoutePaths } from '../../../framework/constants.ts';
 import { useCurrentUser } from '../../../framework/providers/CurrentUserContext.tsx';
 import { ChangeDefaultOrganizationAction } from '../../endUsers/actions/changeDefaultOrganization.ts';
 import { ListAllMembershipsAction } from '../../endUsers/actions/listAllMemberships.ts';
 import { GetOrganizationAction, OrganizationErrorCodes } from '../actions/getOrganization.ts';
-
+import { formatFeatureName, formatRoleName, TenantRoles } from './Organizations.ts';
 
 export const OrganizationsManagePage: React.FC = () => {
   const { t: translate } = useTranslation();
@@ -47,20 +54,18 @@ export const OrganizationsManagePage: React.FC = () => {
         </div>
 
         {memberships?.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            {translate('pages.organizations.manage.noOrganizations')}
-          </div>
+          <div className="text-center py-8 text-neutral-500">{translate('pages.organizations.manage.empty')}</div>
         )}
       </PageAction>
       <div className="text-center">
-        <Link to="/organizations/new">{translate('pages.organizations.manage.links.new')}</Link>
+        <Link to={RoutePaths.OrganizationsNew}>{translate('pages.organizations.manage.links.new')}</Link>
       </div>
     </FormPage>
   );
 };
 
 const OrganizationCard: React.FC<{
-  membership: any;
+  membership: Membership;
   onMembershipChange: () => void;
 }> = ({ membership, onMembershipChange }) => {
   const { t: translate } = useTranslation();
@@ -70,6 +75,10 @@ const OrganizationCard: React.FC<{
   const organization = getOrganization.lastSuccessResponse ?? ({} as Organization);
 
   useEffect(() => getOrganizationTrigger.current?.execute(), []);
+
+  const isPersonal = organization?.ownership === OrganizationOwnership.PERSONAL;
+  const isShared = organization?.ownership === OrganizationOwnership.SHARED;
+  const isOwner = (role: string) => role === TenantRoles.Owner;
 
   return (
     <>
@@ -83,13 +92,13 @@ const OrganizationCard: React.FC<{
         loadingMessage={translate('pages.organizations.manage.loader.organization')}
       >
         <div
-          className={`relative p-2 rounded-lg ${membership.isDefault ? 'border-accent border-3' : 'border-gray-200 border'}`}
+          className={`relative p-2 rounded-lg ${membership.isDefault ? 'border-brand-secondary border-3' : 'border-neutral-200 border'}`}
         >
           {membership.isDefault && (
             <Tag
               className="absolute -top-3 left-4 text-xs"
               label={translate('pages.organizations.manage.labels.current')}
-              color="accent"
+              color="brand-secondary"
             />
           )}
           <div className="flex items-center gap-4">
@@ -102,21 +111,19 @@ const OrganizationCard: React.FC<{
                 />
               ) : (
                 <Icon
-                  className="w-20 h-20 rounded-full object-cover bg-gray-200"
+                  id="avatar_icon"
+                  className="w-20 h-20 rounded-full object-cover bg-neutral-200"
                   symbol="company"
                   size={60}
-                  color="gray-400"
+                  color="neutral-400"
                 />
               )}
-              {organization?.ownership === 'personal' && (
+              {isPersonal && (
                 <div
-                  className="absolute -bottom-1 -right-1 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center"
+                  className="absolute -bottom-1 -right-1 w-8 h-8 bg-neutral-800 rounded-full flex items-center justify-center"
                   title={translate('pages.organizations.manage.hints.ownership')}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="6" y="10" width="12" height="8" rx="2" fill="white" />
-                    <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                  <Icon id="personal_icon" symbol="lock" size={20} color="neutral-400" />
                 </div>
               )}
             </div>
@@ -126,35 +133,35 @@ const OrganizationCard: React.FC<{
                 <h3 className="text-lg font-medium">{organization?.name}</h3>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-neutral-600">
                   <span className="font-medium mr-2">
                     {translate('pages.organizations.manage.labels.roles.label')}:
                   </span>
                   {membership.roles && membership.roles.length > 0 ? (
                     membership.roles.map((role: string, index: number) => (
-                      <Tag key={index} className="text-xs" label={formatRoleName(role)} color="sky" />
+                      <Tag key={index} className="text-xs" label={formatRoleName(translate, role)} color="sky" />
                     ))
                   ) : (
                     <Tag
                       className="text-xs"
                       label={translate('pages.organizations.manage.labels.roles.empty')}
-                      color="gray"
+                      color="neutral"
                     />
                   )}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-neutral-600">
                   <span className="font-medium mr-2">
                     {translate('pages.organizations.manage.labels.features.label')}:
                   </span>
                   {membership.features && membership.features.length > 0 ? (
                     membership.features.map((feature: string, index: number) => (
-                      <Tag key={index} className="text-xs" label={formatFeatureName(feature)} color="lime" />
+                      <Tag key={index} className="text-xs" label={formatFeatureName(translate, feature)} color="lime" />
                     ))
                   ) : (
                     <Tag
                       className="text-xs"
                       label={translate('pages.organizations.manage.labels.features.empty')}
-                      color="gray"
+                      color="neutral"
                     />
                   )}
                 </p>
@@ -164,12 +171,22 @@ const OrganizationCard: React.FC<{
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-center">
                 <Link
-                  to={`/organizations/${membership.organizationId}/edit`}
+                  to={`/organizations/${membership.organizationId}`}
                   title={translate('pages.organizations.manage.hints.edit')}
                 >
-                  <Icon id="edit_icon" color="accent" symbol="edit" size={25} />
+                  <Icon id="edit_icon" color="brand-secondary" symbol="edit" size={25} />
                 </Link>
               </div>
+              {membership.roles?.some((role) => isShared && isOwner(role)) && (
+                <div className="flex items-center justify-center">
+                  <Link
+                    to={`/organizations/${membership.organizationId}#members`}
+                    title={translate('pages.organizations.manage.hints.members')}
+                  >
+                    <Icon id="members_icon" color="brand-secondary" symbol="group" size={25} />
+                  </Link>
+                </div>
+              )}
               {!membership.isDefault && (
                 <div className="flex items-center">
                   <ButtonAction
@@ -183,7 +200,7 @@ const OrganizationCard: React.FC<{
                     variant="ghost"
                     title={translate('pages.organizations.manage.hints.switch_default')}
                   >
-                    <Icon id="switch_icon" color="accent" symbol="shuffle" size={25} />
+                    <Icon id="switch_icon" color="brand-secondary" symbol="shuffle" size={25} />
                   </ButtonAction>
                 </div>
               )}
@@ -194,7 +211,3 @@ const OrganizationCard: React.FC<{
     </>
   );
 };
-
-const formatRoleName = (role: string) => role.replace(/^tenant_/, '');
-
-const formatFeatureName = (feature: string) => feature.replace(/^tenant_/, '').replace(/_features$/, '');

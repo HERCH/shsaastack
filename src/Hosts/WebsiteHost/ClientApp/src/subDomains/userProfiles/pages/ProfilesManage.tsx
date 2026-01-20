@@ -2,8 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import z from 'zod';
-import { ChangeProfileAvatarResponse, ChangeProfileRequest, DeleteProfileAvatarResponse, GetProfileResponse, UserProfileForCaller } from '../../../framework/api/apiHost1';
-import { EmptyRequest } from '../../../framework/api/apiHost1/emptyRequest.ts';
+import {
+  ChangeProfileAvatarResponse,
+  ChangeProfileRequest,
+  DeleteProfileAvatarResponse,
+  GetProfileResponse,
+  UserProfileForCaller
+} from '../../../framework/api/apiHost1';
+import { EmptyRequest } from '../../../framework/api/EmptyRequest.ts';
 import ButtonAction from '../../../framework/components/button/ButtonAction.tsx';
 import ButtonUpload from '../../../framework/components/button/ButtonUpload.tsx';
 import FormAction from '../../../framework/components/form/FormAction.tsx';
@@ -11,17 +17,21 @@ import FormInput from '../../../framework/components/form/formInput/FormInput.ts
 import FormPage from '../../../framework/components/form/FormPage.tsx';
 import FormSelect from '../../../framework/components/form/formSelect/FormSelect.tsx';
 import FormSubmitButton from '../../../framework/components/form/formSubmitButton/FormSubmitButton.tsx';
-import { FormTabs } from '../../../framework/components/form/FormTabs.tsx';
 import Icon from '../../../framework/components/icon/Icon.tsx';
+import { Tabs } from '../../../framework/components/navigation/Tabs.tsx';
 import PageAction, { PageActionRef } from '../../../framework/components/page/PageAction.tsx';
 import Tag from '../../../framework/components/tag/Tag.tsx';
 import { useCurrentUser } from '../../../framework/providers/CurrentUserContext.tsx';
 import { countryTimezones } from '../../../framework/utils/browser.ts';
 import { ChangeProfileAction } from '../actions/changeProfile.ts';
-import { ChangeProfileAvatarAction, ChangeProfileAvatarRequest, UploadAvatarErrors } from '../actions/changeProfileAvatar.ts';
+import {
+  ChangeProfileAvatarAction,
+  ChangeProfileAvatarRequest,
+  UploadAvatarErrors
+} from '../actions/changeProfileAvatar.ts';
 import { DeleteProfileAvatarAction } from '../actions/deleteProfileAvatar.ts';
 import { GetProfileForCallerAction } from '../actions/getProfileForCaller.ts';
-
+import { formatFeatureName, formatRoleName } from './Profiles.ts';
 
 export const ProfilesManagePage: React.FC = () => {
   const { t: translate } = useTranslation();
@@ -38,19 +48,6 @@ export const ProfilesManagePage: React.FC = () => {
     refetchCurrentUser();
   };
 
-  const tabs = [
-    {
-      id: 'account',
-      label: translate('pages.profiles.manage.tabs.account.title'),
-      content: <AccountTab initialProfile={profile} currentProfile={currentProfile} />
-    },
-    {
-      id: 'profile',
-      label: translate('pages.profiles.manage.tabs.profile.title'),
-      content: <ProfileTab currentProfile={currentProfile} onProfileChange={onProfileChange} />
-    }
-  ];
-
   return (
     <FormPage title={translate('pages.profiles.manage.title')} align="top">
       <PageAction
@@ -63,7 +60,21 @@ export const ProfilesManagePage: React.FC = () => {
         ref={getProfileTrigger}
         loadingMessage={translate('pages.profiles.manage.loader.title')}
       >
-        <FormTabs tabs={tabs} defaultTab="account" storageKey="profiles.manage" />
+        <Tabs
+          defaultTab="account"
+          tabs={[
+            {
+              id: 'account',
+              label: translate('pages.profiles.manage.tabs.account.title'),
+              content: <AccountTab initialProfile={profile} currentProfile={currentProfile} />
+            },
+            {
+              id: 'profile',
+              label: translate('pages.profiles.manage.tabs.profile.title'),
+              content: <ProfileTab currentProfile={currentProfile} onProfileChange={onProfileChange} />
+            }
+          ]}
+        />
       </PageAction>
     </FormPage>
   );
@@ -76,54 +87,52 @@ const AccountTab: React.FC<{
   const { t: translate } = useTranslation();
   return (
     <div className="space-y-6">
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+      <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-              {translate('pages.profiles.manage.tabs.account.form.fields.name.label')}
+            <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+              {translate('pages.profiles.manage.tabs.account.form.fields.display_name.label')}
             </label>
-            <p className="text-gray-900 dark:text-gray-100">
-              {currentProfile.name?.firstName} {currentProfile.name?.lastName}
-            </p>
+            <p className="text-neutral-900 dark:text-neutral-100">{currentProfile.displayName}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">
               {translate('pages.profiles.manage.tabs.account.form.fields.email_address.label')}
             </label>
-            <p className="text-gray-900 dark:text-gray-100">{initialProfile.emailAddress}</p>
+            <p className="text-neutral-900 dark:text-neutral-100">{initialProfile.emailAddress}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">
               {translate('pages.profiles.manage.tabs.account.form.fields.roles.label')}
             </label>
             <div className="flex flex-wrap gap-2">
               {initialProfile.roles && initialProfile.roles.length > 0 ? (
                 initialProfile.roles.map((role, index) => (
-                  <Tag key={index} className="text-xs" label={formatRoleName(role)} color="sky" />
+                  <Tag key={index} className="text-xs" label={formatRoleName(translate, role)} color="sky" />
                 ))
               ) : (
                 <Tag
                   className="text-xs"
                   label={translate('pages.profiles.manage.tabs.account.form.fields.roles.empty')}
-                  color="gray"
+                  color="neutral"
                 />
               )}
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <label className="block text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-1">
               {translate('pages.profiles.manage.tabs.account.form.fields.features.label')}
             </label>
             <div className="flex flex-wrap gap-2">
               {initialProfile.features && initialProfile.features.length > 0 ? (
                 initialProfile.features.map((feature, index) => (
-                  <Tag key={index} className="text-xs" label={formatFeatureName(feature)} color="lime" />
+                  <Tag key={index} className="text-xs" label={formatFeatureName(translate, feature)} color="lime" />
                 ))
               ) : (
                 <Tag
                   className="text-xs"
                   label={translate('pages.profiles.manage.tabs.account.form.fields.features.empty')}
-                  color="gray"
+                  color="neutral"
                 />
               )}
             </div>
@@ -160,11 +169,13 @@ const ProfileTab: React.FC<{
     <>
       <div className="mb-6">
         <div className="flex flex-col items-center">
-          <div className="w-40 h-40 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700  flex items-center justify-center">
+          <div className="w-40 h-40 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700  flex items-center justify-center">
             {currentProfile.avatarUrl ? (
               <img className="w-full h-full  object-cover" src={currentProfile.avatarUrl} alt={displayName} />
             ) : (
-              <span className="text-gray-400 text-5xl leading-none">{avatarLetter}</span>
+              <span className="text-neutral-400 text-5xl leading-none" data-testid="avatar_letter">
+                {avatarLetter}
+              </span>
             )}
           </div>
 
@@ -174,9 +185,10 @@ const ProfileTab: React.FC<{
               id="upload_avatar"
               onFileChange={(file) => {
                 if (file) {
-                  changeAvatarTrigger.current?.execute({ file } as ChangeProfileAvatarRequest);
+                  changeAvatarTrigger.current?.execute({ file });
                 }
               }}
+              title={translate('pages.profiles.manage.tabs.profile.hints.upload')}
               disabled={changeAvatar.isExecuting}
             />
             <PageAction
@@ -268,7 +280,3 @@ const ProfileTab: React.FC<{
     </>
   );
 };
-
-const formatRoleName = (role: string) => role.replace(/^platform_/, '');
-
-const formatFeatureName = (feature: string) => feature.replace(/^platform_/, '').replace(/_features$/, '');

@@ -449,6 +449,42 @@ public class JsonClientSpec
         }
 
         [Fact]
+        public async Task
+            WhenGetTypedResponseAsyncAndContentTypeIsJsonAndSendGridErrorForFailureThenReturnsResponseProblem()
+        {
+            var response = new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.InternalServerError,
+                Content = JsonContent.Create(new
+                {
+                    errors = new[]
+                    {
+                        new
+                        {
+                            message = "amessage",
+                            field = "afield",
+                            help = "ahelp"
+                        }
+                    }
+                }, new MediaTypeHeaderValue(HttpConstants.ContentTypes.Json)),
+                ReasonPhrase = "areason"
+            };
+
+            var result =
+                await JsonClient.GetTypedResponseAsync<TestResponse>(response, null, CancellationToken.None);
+
+            result.IsSuccessful.Should().BeFalse();
+            result.Error.Status.Should().Be(500);
+            result.Error.Title.Should().Be("amessage");
+            result.Error.Detail.Should().Be("afield");
+            result.Error.Type.Should().Be("ahelp");
+            result.Error.Instance.Should().BeNull();
+            result.Error.Exception.Should().BeNull();
+            result.Error.Errors.Should().BeNull();
+            result.Error.Extensions.Should().BeNull();
+        }
+
+        [Fact]
         public async Task WhenGetTypedResponseAsyncAndContentTypeIsTextForSuccess_ThenReturnsEmptyResponse()
         {
             var response = new HttpResponseMessage
@@ -528,7 +564,7 @@ public class JsonClientSpec
             };
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -561,7 +597,7 @@ public class JsonClientSpec
             };
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -595,7 +631,7 @@ public class JsonClientSpec
             };
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -630,7 +666,7 @@ public class JsonClientSpec
             };
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Get, request, null, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -662,7 +698,7 @@ public class JsonClientSpec
             var request = new TestRequest();
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, null, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, null, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -692,7 +728,7 @@ public class JsonClientSpec
             var file = new PostFile(new MemoryStream(), HttpConstants.ContentTypes.Json);
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, file, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, file, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -722,7 +758,7 @@ public class JsonClientSpec
             var file = new PostFile(new MemoryStream(), HttpConstants.ContentTypes.Json);
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, file, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, file, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -751,7 +787,7 @@ public class JsonClientSpec
             var request = new TestFormUrlEncodedRequest();
 
             var result =
-                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, null, null,
+                await JsonClient.SendRequestAsync(client, HttpMethod.Post, request, null, null, null,
                     CancellationToken.None);
 
             result.Should().Be(response);
@@ -763,7 +799,6 @@ public class JsonClientSpec
                     ),
                     ItExpr.IsAny<CancellationToken>());
         }
-        
     }
 
     [Trait("Category", "Unit")]

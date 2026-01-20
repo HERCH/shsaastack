@@ -18,11 +18,12 @@ public class NativeOAuth2ClientService : IOAuth2ClientService
 
     public NativeOAuth2ClientService(IRecorder recorder, IIdentifierFactory identifierFactory,
         ITokensService tokensService, IPasswordHasherService passwordHasherService,
-        IOAuth2ClientRepository oAuthClientRepository, IOAuth2ClientConsentRepository oAuthClientConsentRepository)
+        IImagesService imagesService, IOAuth2ClientRepository oAuthClientRepository,
+        IOAuth2ClientConsentRepository oAuthClientConsentRepository)
     {
         _service =
             new NativeIdentityServerOAuth2ClientService(recorder, identifierFactory, tokensService,
-                passwordHasherService, oAuthClientRepository, oAuthClientConsentRepository);
+                passwordHasherService, imagesService, oAuthClientRepository, oAuthClientConsentRepository);
     }
 
     public async Task<Result<Optional<OAuth2Client>, Error>> FindClientByIdAsync(ICallerContext caller, string clientId,
@@ -31,10 +32,11 @@ public class NativeOAuth2ClientService : IOAuth2ClientService
         return await _service.FindClientByIdAsync(caller, clientId, cancellationToken);
     }
 
-    public async Task<Result<bool, Error>> HasClientConsentedUserAsync(ICallerContext caller, string clientId,
+    public async Task<Result<bool, Error>> HasUserConsentedClientAsync(ICallerContext caller, string clientId,
         string userId, string scope, CancellationToken cancellationToken)
     {
-        return await _service.HasClientConsentedUserAsync(caller, clientId, userId, scope, cancellationToken);
+        var consented = await _service.HasUserConsentedClientAsync(caller, clientId, userId, scope, cancellationToken);
+        return consented.Match<Result<bool, Error>>(consent => consent.Value.IsConsented, error => error);
     }
 
     public async Task<Result<OAuth2Client, Error>> VerifyClientAsync(ICallerContext caller, string clientId,

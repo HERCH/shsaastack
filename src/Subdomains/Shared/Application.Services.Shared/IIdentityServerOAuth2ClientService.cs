@@ -10,10 +10,17 @@ namespace Application.Services.Shared;
 public interface IIdentityServerOAuth2ClientService
 {
     /// <summary>
+    ///     Changes the avatar of the OAuth2 client
+    /// </summary>
+    Task<Result<OAuth2Client, Error>> ChangeClientLogoAsync(ICallerContext caller, string id, FileUpload upload,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Consents the user to the OAuth2 client
     /// </summary>
-    Task<Result<OAuth2ClientConsent, Error>> ConsentToClientAsync(ICallerContext caller, string clientId, string userId,
-        string? scope, bool isConsented, CancellationToken cancellationToken);
+    Task<Result<OAuth2ClientConsentResult, Error>> ConsentToClientAsync(ICallerContext caller, string clientId,
+        string userId,
+        string redirectUri, string scope, bool isConsented, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Creates a new OAuth2 client
@@ -25,6 +32,12 @@ public interface IIdentityServerOAuth2ClientService
     ///     Deletes the OAuth2 client
     /// </summary>
     Task<Result<Error>> DeleteClientAsync(ICallerContext caller, string id, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Deletes the avatar of the OAuth2 client
+    /// </summary>
+    Task<Result<OAuth2Client, Error>> DeleteClientLogoAsync(ICallerContext caller, string id,
+        CancellationToken cancellationToken);
 
     /// <summary>
     ///     Finds the OAuth2 client
@@ -47,7 +60,8 @@ public interface IIdentityServerOAuth2ClientService
     /// <summary>
     ///     Whether the user has consented to the OAuth2 client for the specified scope
     /// </summary>
-    Task<Result<bool, Error>> HasClientConsentedUserAsync(ICallerContext caller, string clientId, string userId,
+    Task<Result<OAuth2ClientConsentStatus, Error>> HasUserConsentedClientAsync(ICallerContext caller, string clientId,
+        string userId,
         string scope, CancellationToken cancellationToken);
 
     /// <summary>

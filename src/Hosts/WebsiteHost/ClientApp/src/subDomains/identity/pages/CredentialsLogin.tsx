@@ -6,11 +6,12 @@ import FormAction from '../../../framework/components/form/FormAction.tsx';
 import FormInput from '../../../framework/components/form/formInput/FormInput.tsx';
 import FormPage from '../../../framework/components/form/FormPage.tsx';
 import FormSubmitButton from '../../../framework/components/form/formSubmitButton/FormSubmitButton.tsx';
-import { CredentialsLoginAction, LoginErrors } from '../actions/credentialsLogin.ts';
+import { RoutePaths } from '../../../framework/constants.ts';
+import { LoginCredentialsAction, LoginCredentialsErrors } from '../actions/loginCredentials.ts';
 
 export const CredentialsLoginPage: React.FC = () => {
   const { t: translate } = useTranslation();
-  const login = CredentialsLoginAction();
+  const login = LoginCredentialsAction();
 
   return (
     <FormPage title={translate('pages.identity.credentials_login.title')}>
@@ -25,10 +26,14 @@ export const CredentialsLoginPage: React.FC = () => {
             .max(200, translate('pages.identity.credentials_login.form.fields.password.validation'))
         })}
         expectedErrorMessages={{
-          [LoginErrors.account_locked]: translate('pages.identity.credentials_login.errors.account_locked'),
-          [LoginErrors.account_unverified]: translate('pages.identity.credentials_login.errors.account_unverified'),
-          [LoginErrors.invalid_credentials]: translate('pages.identity.credentials_login.errors.invalid_credentials'),
-          [LoginErrors.mfa_required]: translate('pages.identity.credentials_login.errors.mfa_required')
+          [LoginCredentialsErrors.account_locked]: translate('pages.identity.credentials_login.errors.account_locked'),
+          [LoginCredentialsErrors.account_unverified]: translate(
+            'pages.identity.credentials_login.errors.account_unverified'
+          ),
+          [LoginCredentialsErrors.invalid_credentials]: translate(
+            'pages.identity.credentials_login.errors.invalid_credentials'
+          ),
+          [LoginCredentialsErrors.mfa_required]: translate('pages.identity.credentials_login.errors.mfa_required')
         }}
       >
         <FormInput
@@ -46,19 +51,20 @@ export const CredentialsLoginPage: React.FC = () => {
           placeholder={translate('pages.identity.credentials_login.form.fields.password.placeholder')}
           autoComplete="current-password"
         />
+        <div className="text-right">
+          <Link to={RoutePaths.PasswordReset}>
+            {translate('pages.identity.credentials_login.links.forgot_password')}
+          </Link>
+        </div>
         <FormSubmitButton label={translate('pages.identity.credentials_login.form.submit.label')} />
       </FormAction>
       <div className="text-center">
         <p>
           {translate('pages.identity.credentials_login.links.register.question')}{' '}
-          <Link to="/identity/credentials/register">
-            {translate('pages.identity.credentials_login.links.register.text')}
-          </Link>
+          <Link to={RoutePaths.Register}>{translate('pages.identity.credentials_login.links.register.text')}</Link>
         </p>
         <p>
-          <Link to="/" className="btn btn-secondary">
-            {translate('pages.identity.credentials_login.links.home')}
-          </Link>
+          <Link to={RoutePaths.Home}>{translate('pages.identity.credentials_login.links.home')}</Link>
         </p>
       </div>
     </FormPage>

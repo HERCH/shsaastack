@@ -18,7 +18,7 @@ public static class DateTimeExtensions
             return default;
         }
 
-        var supportedIsoFormats = new[]
+        var supportedDateAndTimeFormats = new[]
         {
             "yyyyMMddTHHmmssZ", "yyyyMMddTHHmmsszz", "yyyyMMddTHHmmsszzz",
             "yyyy-MM-ddTHH:mm:ssZ", "yyyy-MM-ddTHH:mm:sszz", "yyyy-MM-ddTHH:mm:sszzz",
@@ -26,12 +26,31 @@ public static class DateTimeExtensions
             "yyyy-MM-ddTHH:mm:ss.FFFFZ", "yyyy-MM-ddTHH:mm:ss.FFFFFZ", "yyyy-MM-ddTHH:mm:ss.FFFFFFZ",
             "yyyy-MM-ddTHH:mm:ss.FFFFFFFZ"
         };
-        if (DateTime.TryParseExact(value, supportedIsoFormats, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.None,
+        var supportedDateOnlyFormats = new[]
+        {
+            "yyyyMMdd", "yyyy-MM-dd"
+        };
+
+        var longestDateOnlyFormat = supportedDateOnlyFormats.Max(x => x.Length);
+        if (value.Length > longestDateOnlyFormat)
+        {
+            if (DateTime.TryParseExact(value, supportedDateAndTimeFormats, DateTimeFormatInfo.InvariantInfo,
+                    DateTimeStyles.None,
                 out var date))
         {
             return date.Kind == DateTimeKind.Utc
                 ? date
                 : date.ToUniversalTime();
+        }
+        }
+        else
+        {
+            if (DateOnly.TryParseExact(value, supportedDateOnlyFormats, DateTimeFormatInfo.InvariantInfo,
+                    DateTimeStyles.None,
+                    out var date))
+            {
+                return date.ToDateTime(TimeOnly.MinValue);
+            }
         }
 
         return default;
@@ -284,13 +303,11 @@ public static class DateTimeExtensions
     }
 
     /// <summary>
-    ///     Truncates the <see cref="value" /> to the nearest minute.
+    ///     Truncates the <see cref="value" /> to the nearest millisecond.
     /// </summary>
-    public static DateTime ToNearestMinute(this DateTime value)
+    public static DateTimeOffset ToNearestMillisecond(this DateTime value)
     {
-        var microsecondOffset = TimeSpan.FromSeconds(value.Second)
-            .Add(TimeSpan.FromMilliseconds(value.Millisecond))
-            .Add(TimeSpan.FromMicroseconds(value.Microsecond));
+        var microsecondOffset = TimeSpan.FromMicroseconds(value.Microsecond);
         var nanosecondsInTicks = value.Nanosecond != 0
             ? value.Nanosecond / 100
             : 0;
@@ -298,16 +315,42 @@ public static class DateTimeExtensions
     }
 
     /// <summary>
-    ///     Truncates the <see cref="value" /> to the nearest second.
+    ///     Truncates the <see cref="value" /> to the nearest millisecond.
     /// </summary>
-    public static DateTime ToNearestSecond(this DateTime value)
+    public static DateTimeOffset ToNearestMillisecond(this DateTimeOffset value)
     {
-        var microsecondOffset = TimeSpan.FromMilliseconds(value.Millisecond)
-            .Add(TimeSpan.FromMicroseconds(value.Microsecond));
+        var microsecondOffset = TimeSpan.FromMicroseconds(value.Microsecond);
         var nanosecondsInTicks = value.Nanosecond != 0
             ? value.Nanosecond / 100
             : 0;
         return value.Subtract(microsecondOffset).AddTicks(-nanosecondsInTicks);
+    }
+
+    /// <summary>
+    ///     Truncates the <see cref="value" /> to the nearest minute.
+    /// </summary>
+    public static DateTime ToNearestMinute(this DateTime value)
+    {
+        var secondOffset = TimeSpan.FromSeconds(value.Second)
+            .Add(TimeSpan.FromMilliseconds(value.Millisecond))
+            .Add(TimeSpan.FromMicroseconds(value.Microsecond));
+        var nanosecondsInTicks = value.Nanosecond != 0
+            ? value.Nanosecond / 100
+            : 0;
+        return value.Subtract(secondOffset).AddTicks(-nanosecondsInTicks);
+    }
+
+    /// <summary>
+    ///     Truncates the <see cref="value" /> to the nearest second.
+    /// </summary>
+    public static DateTime ToNearestSecond(this DateTime value)
+    {
+        var millisecondOffset = TimeSpan.FromMilliseconds(value.Millisecond)
+            .Add(TimeSpan.FromMicroseconds(value.Microsecond));
+        var nanosecondsInTicks = value.Nanosecond != 0
+            ? value.Nanosecond / 100
+            : 0;
+        return value.Subtract(millisecondOffset).AddTicks(-nanosecondsInTicks);
     }
 
     /// <summary>

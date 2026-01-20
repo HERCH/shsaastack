@@ -1,13 +1,12 @@
 using System.Text;
 using Application.Interfaces;
-using Application.Interfaces.Services;
 using Common;
-using Common.Configuration;
 using Common.Extensions;
 using Common.Recording;
 using Domain.Interfaces;
 using Domain.Interfaces.Services;
 using Infrastructure.Common.Recording;
+using Infrastructure.Hosting.Common.Extensions;
 using Microsoft.Extensions.Logging;
 using Colors = Infrastructure.Common.ConsoleConstants.Colors;
 
@@ -155,6 +154,20 @@ public sealed class HostRecorder : IRecorder, IDisposable
         _metricsReporter.Measure(call, eventName, additional ?? new Dictionary<string, object>());
     }
 
+    public void Trace(ICallContext? call, RecorderTraceLevel level, Exception? exception, string messageTemplate,
+        params object[] templateArgs)
+    {
+        if (messageTemplate.HasNoValue())
+        {
+            return;
+        }
+
+        var loggerLevel = level.ToLoggerLevel();
+        var (augmentedMessageTemplate, augmentedArguments) =
+            AugmentMessageTemplateAndArguments(call, messageTemplate, templateArgs);
+        _logger.Log(loggerLevel, augmentedMessageTemplate, augmentedArguments);
+    }
+
     public void TraceDebug(ICallContext? call, string messageTemplate, params object[] templateArgs)
     {
         if (messageTemplate.HasNoValue())
@@ -206,6 +219,8 @@ public sealed class HostRecorder : IRecorder, IDisposable
             AugmentMessageTemplateAndArguments(call, messageTemplate, templateArgs);
         _logger.LogInformation(augmentedMessageTemplate, augmentedArguments);
     }
+
+    public RecorderTraceLevel TraceLevel => _logger.GetTraceLevel();
 
     public void TraceWarning(ICallContext? call, Exception exception, string messageTemplate,
         params object[] templateArgs)
@@ -290,8 +305,7 @@ public sealed class HostRecorder : IRecorder, IDisposable
         return options.AuditReporting switch
         {
             AuditReporterOption.None => new NoOpAuditReporter(),
-            AuditReporterOption.ReliableQueue => new QueuedAuditReporter(container,
-                container.GetRequiredService<IHostSettings>()),
+            AuditReporterOption.ReliableQueue => container.GetRequiredService<IAuditReporter>(),
             _ => throw new ArgumentOutOfRangeException(nameof(options.MetricReporting))
         };
     }
@@ -313,9 +327,7 @@ public sealed class HostRecorder : IRecorder, IDisposable
         return options.UsageReporting switch
         {
             UsageReporterOption.None => new NoOpUsageReporter(),
-            UsageReporterOption.ReliableQueue => new QueuedUsageReporter(container,
-                container.GetRequiredServiceForPlatform<IConfigurationSettings>(),
-                container.GetRequiredService<IHostSettings>()),
+            UsageReporterOption.ReliableQueue => container.GetRequiredService<IUsageReporter>(),
             _ => throw new ArgumentOutOfRangeException(nameof(options.MetricReporting))
         };
     }

@@ -2,11 +2,12 @@ import { QueryClient } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React, { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AxiosError, AxiosResponse } from 'axios';
+import { EmptyResponse } from '../api/apiHost1';
 import { IOfflineService } from '../services/IOfflineService.ts';
 import { TestingProviders } from '../testing/TestingProviders.tsx';
+import { useActionCommand } from './ActionCommand.ts';
 import { useActionQuery } from './ActionQuery';
-
+import { ApiResponse } from './Actions.ts';
 
 interface UntenantedRequestData {
   name?: string;
@@ -62,24 +63,21 @@ describe('useActionQuery', () => {
 
   describe('given a successful untenanted request', () => {
     const mockSuccessfulRequest = vi.fn(
-      async (_requestData: UntenantedRequestData): Promise<AxiosResponse<TestResponse>> => {
+      async (_requestData: UntenantedRequestData): Promise<ApiResponse<TestResponse>> => {
         // Add a small delay to test loading states
         await new Promise((resolve) => setTimeout(resolve, 50));
         return {
           data: { message: 'amessage' },
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: {} as any,
-          request: {},
-          error: undefined
-        } as AxiosResponse<TestResponse>;
+          error: undefined,
+          request: {} as Request,
+          response: { ok: true, status: 200 } as Response
+        };
       }
     );
 
     const unTenantedAction = () =>
       useActionQuery({
-        request: mockSuccessfulRequest as any,
+        request: mockSuccessfulRequest,
         isTenanted: false,
         transform: (x) => x,
         cacheKey: ['acachekey'],
@@ -122,7 +120,11 @@ describe('useActionQuery', () => {
 
       expect(result.current.isExecuting).toBe(false);
       expect(result.current.isReady).toBe(false);
-      expect(result.current.lastUnexpectedError).toBeUndefined();
+      expect(result.current.lastExpectedError).toBeUndefined();
+      expect(result.current.lastUnexpectedError).toBeDefined();
+      expect(result.current.lastUnexpectedError?.data).toStrictEqual(new Error('actions.errors.offline'));
+      expect(result.current.lastUnexpectedError?.response.status).toBe(0);
+      expect(result.current.lastUnexpectedError?.response.statusText).toBe('Internal Client Error');
       expect(result.current.lastSuccessResponse).toBeUndefined();
       expect(result.current.lastRequestValues).toBeUndefined();
       expect(mockSuccessfulRequest).not.toHaveBeenCalled();
@@ -131,24 +133,21 @@ describe('useActionQuery', () => {
 
   describe('given a successful tenanted request', () => {
     const mockSuccessfulRequest = vi.fn(
-      async (_requestData: TenantedRequestData): Promise<AxiosResponse<TestResponse>> => {
+      async (_requestData: UntenantedRequestData): Promise<ApiResponse<TestResponse>> => {
         // Add a small delay to test loading states
         await new Promise((resolve) => setTimeout(resolve, 50));
         return {
           data: { message: 'amessage' },
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: {} as any,
-          request: {},
-          error: undefined
-        } as AxiosResponse<TestResponse>;
+          error: undefined,
+          request: {} as Request,
+          response: { ok: true, status: 200 } as Response
+        };
       }
     );
 
     const tenantedAction = () =>
       useActionQuery({
-        request: mockSuccessfulRequest as any,
+        request: mockSuccessfulRequest,
         isTenanted: true,
         transform: (x) => x,
         cacheKey: ['acachekey'],
@@ -159,7 +158,7 @@ describe('useActionQuery', () => {
 
     const tenantedActionWithOrganizationId = () =>
       useActionQuery({
-        request: mockSuccessfulRequest as any,
+        request: mockSuccessfulRequest,
         isTenanted: true,
         transform: (x) => x,
         cacheKey: ['acachekey'],
@@ -220,28 +219,25 @@ describe('useActionQuery', () => {
       offlineService.status = 'online';
     });
 
-    it('when throws error, return expected error', async () => {
-      const mockRequest = vi.fn(() =>
-        Promise.reject({
-          isAxiosError: true,
-          message: 'anerror',
-          response: {
-            status: 400,
-            statusText: 'anerror',
-            data: {
-              title: 'atitle',
-              details: 'adetails',
-              errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
-            },
-            headers: {},
-            config: {} as any
-          }
-        } as AxiosError)
+    it('when rejects error, then returns expected error', async () => {
+      const error = {
+        title: 'atitle',
+        details: 'adetails',
+        errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
+      };
+      const mockFailedRequest = vi.fn(
+        async (_requestData: UntenantedRequestData): Promise<ApiResponse<EmptyResponse>> =>
+          Promise.reject({
+            data: undefined,
+            error,
+            request: {} as Request,
+            response: { ok: false, status: 400 } as Response
+          })
       );
 
       const anyAction = () =>
         useActionQuery({
-          request: mockRequest as any,
+          request: mockFailedRequest,
           isTenanted: false,
           transform: (x) => x,
           cacheKey: ['acachekey'],
@@ -261,39 +257,32 @@ describe('useActionQuery', () => {
       expect(result.current.isExecuting).toBe(false);
       expect(result.current.isReady).toBe(true);
       expect(result.current.lastExpectedError?.code).toBe('BadRequest');
-      expect(result.current.lastExpectedError?.response).toStrictEqual({
-        title: 'atitle',
-        details: 'adetails',
-        errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
-      });
+      expect(result.current.lastExpectedError?.response).toStrictEqual(error);
       expect(result.current.lastUnexpectedError).toBeUndefined();
       expect(result.current.lastSuccessResponse).toBeUndefined();
       expect(result.current.lastRequestValues).toStrictEqual({ aname: 'avalue' });
-      expect(mockRequest).toHaveBeenCalledWith({ aname: 'avalue' });
+      expect(mockFailedRequest).toHaveBeenCalledWith({ aname: 'avalue' });
     });
 
-    it('when returns error, return expected error', async () => {
-      const mockRequest = vi.fn(() =>
-        Promise.resolve({
-          isAxiosError: true,
-          message: 'anerror',
-          response: {
-            status: 400,
-            statusText: 'anerror',
-            data: {
-              title: 'atitle',
-              details: 'adetails',
-              errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
-            },
-            headers: {},
-            config: {} as any
-          }
-        } as AxiosError)
+    it('when returns error, then returns expected error', async () => {
+      const error = {
+        title: 'atitle',
+        details: 'adetails',
+        errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
+      };
+      const mockFailedRequest = vi.fn(
+        async (_requestData: UntenantedRequestData): Promise<ApiResponse<EmptyResponse>> =>
+          Promise.resolve({
+            data: undefined,
+            error,
+            request: {} as Request,
+            response: { ok: false, status: 400 } as Response
+          })
       );
 
       const anyAction = () =>
         useActionQuery({
-          request: mockRequest as any,
+          request: mockFailedRequest,
           isTenanted: false,
           transform: (x) => x,
           cacheKey: ['acachekey'],
@@ -313,54 +302,33 @@ describe('useActionQuery', () => {
       expect(result.current.isExecuting).toBe(false);
       expect(result.current.isReady).toBe(true);
       expect(result.current.lastExpectedError?.code).toBe('BadRequest');
-      expect(result.current.lastExpectedError?.response).toStrictEqual({
-        title: 'atitle',
-        details: 'adetails',
-        errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
-      });
+      expect(result.current.lastExpectedError?.response).toStrictEqual(error);
       expect(result.current.lastUnexpectedError).toBeUndefined();
       expect(result.current.lastSuccessResponse).toBeUndefined();
       expect(result.current.lastRequestValues).toStrictEqual({ aname: 'avalue' });
-      expect(mockRequest).toHaveBeenCalledWith({ aname: 'avalue' });
+      expect(mockFailedRequest).toHaveBeenCalledWith({ aname: 'avalue' });
     });
   });
 
-  describe('given an unexpected error', () => {
+  describe('given no expected errors', () => {
     beforeEach(() => {
       offlineService.status = 'online';
     });
 
-    it('when throws error, return unexpected error', async () => {
-      const mockRequest = vi.fn(() =>
-        Promise.reject({
-          isAxiosError: true,
-          message: 'anerror',
-          response: {
-            status: 500,
-            statusText: 'anerror',
-            data: {
-              title: 'atitle',
-              details: 'adetails',
-              errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
-            },
-            headers: {},
-            config: {} as any
-          }
-        } as AxiosError)
+    it('when rejects JavaScript error, then return unexpected error', async () => {
+      const error = new Error('anerror');
+      const mockFailedRequest = vi.fn(
+        async (_requestData: UntenantedRequestData): Promise<ApiResponse<EmptyResponse>> => Promise.reject(error)
       );
 
-      const anyAction = () =>
-        useActionQuery({
-          request: mockRequest as any,
-          isTenanted: false,
-          transform: (x) => x,
-          cacheKey: ['acachekey'],
-          passThroughErrors: {
-            400: 'BadRequest'
-          }
+      const action = () =>
+        useActionCommand({
+          request: mockFailedRequest,
+          onSuccess: () => vi.fn(),
+          invalidateCacheKeys: []
         });
 
-      const { result } = renderHook(() => anyAction(), {
+      const { result } = renderHook(() => action(), {
         wrapper: ({ children }) => createWrapper({ children, offlineService })
       });
 
@@ -370,46 +338,38 @@ describe('useActionQuery', () => {
 
       expect(result.current.isExecuting).toBe(false);
       expect(result.current.isReady).toBe(true);
+      expect(result.current.lastExpectedError).toBeUndefined();
       expect(result.current.lastUnexpectedError).toBeDefined();
-      expect(result.current.lastUnexpectedError?.message).toBe('anerror');
-      expect(result.current.lastUnexpectedError?.response?.data).toStrictEqual({
-        title: 'atitle',
-        details: 'adetails',
-        errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
-      });
+      expect(result.current.lastUnexpectedError?.data).toStrictEqual(error);
+      expect(result.current.lastUnexpectedError?.response.status).toBe(0);
+      expect(result.current.lastUnexpectedError?.response.statusText).toBe('Internal Client Error');
       expect(result.current.lastSuccessResponse).toBeUndefined();
       expect(result.current.lastRequestValues).toStrictEqual({ aname: 'avalue' });
-      expect(mockRequest).toHaveBeenCalledWith({ aname: 'avalue' });
+      expect(mockFailedRequest).toHaveBeenCalledWith({ aname: 'avalue' });
     });
 
-    it('when returns error, return unexpected error', async () => {
-      const mockRequest = vi.fn(() =>
-        Promise.resolve({
-          isAxiosError: true,
-          message: 'anerror',
-          response: {
-            status: 500,
-            statusText: 'anerror',
-            data: {
-              title: 'atitle',
-              details: 'adetails',
-              errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
-            },
-            headers: {},
-            config: {} as any
-          }
-        } as AxiosError)
+    it('when rejects error, then return unexpected error', async () => {
+      const error = {
+        title: 'atitle',
+        details: 'adetails',
+        errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
+      };
+      const mockFailedRequest = vi.fn(
+        async (_requestData: UntenantedRequestData): Promise<ApiResponse<EmptyResponse>> =>
+          Promise.reject({
+            data: undefined,
+            error,
+            request: {} as Request,
+            response: { ok: false, status: 500 } as Response
+          })
       );
 
       const anyAction = () =>
         useActionQuery({
-          request: mockRequest as any,
+          request: mockFailedRequest,
           isTenanted: false,
           transform: (x) => x,
-          cacheKey: ['acachekey'],
-          passThroughErrors: {
-            400: 'BadRequest'
-          }
+          cacheKey: ['acachekey']
         });
 
       const { result } = renderHook(() => anyAction(), {
@@ -422,16 +382,57 @@ describe('useActionQuery', () => {
 
       expect(result.current.isExecuting).toBe(false);
       expect(result.current.isReady).toBe(true);
+      expect(result.current.lastExpectedError).toBeUndefined();
       expect(result.current.lastUnexpectedError).toBeDefined();
-      expect(result.current.lastUnexpectedError?.message).toBe('anerror');
-      expect(result.current.lastUnexpectedError?.response?.data).toStrictEqual({
+      expect(result.current.lastUnexpectedError?.data).toStrictEqual(error);
+      expect(result.current.lastSuccessResponse).toBeUndefined();
+      expect(result.current.lastRequestValues).toStrictEqual({ aname: 'avalue' });
+      expect(mockFailedRequest).toHaveBeenCalledWith({ aname: 'avalue' });
+    });
+
+    it('when returns error, then return unexpected error', async () => {
+      const error = {
+        title: 'atitle',
+        details: 'adetails',
+        errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
+      };
+      const mockFailedRequest = vi.fn(
+        async (_requestData: UntenantedRequestData): Promise<ApiResponse<EmptyResponse>> => ({
+          data: undefined,
+          error,
+          request: {} as Request,
+          response: { ok: false, status: 500 } as Response
+        })
+      );
+
+      const anyAction = () =>
+        useActionQuery({
+          request: mockFailedRequest,
+          isTenanted: false,
+          transform: (x) => x,
+          cacheKey: ['acachekey']
+        });
+
+      const { result } = renderHook(() => anyAction(), {
+        wrapper: ({ children }) => createWrapper({ children, offlineService })
+      });
+
+      await act(async () => result.current.execute({ aname: 'avalue' } as UntenantedRequestData));
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(false));
+
+      expect(result.current.isExecuting).toBe(false);
+      expect(result.current.isReady).toBe(true);
+      expect(result.current.lastExpectedError).toBeUndefined();
+      expect(result.current.lastUnexpectedError).toBeDefined();
+      expect(result.current.lastUnexpectedError?.data).toStrictEqual({
         title: 'atitle',
         details: 'adetails',
         errors: [{ rule: 'arule', reason: 'areason', value: 'avalue' }]
       });
       expect(result.current.lastSuccessResponse).toBeUndefined();
       expect(result.current.lastRequestValues).toStrictEqual({ aname: 'avalue' });
-      expect(mockRequest).toHaveBeenCalledWith({ aname: 'avalue' });
+      expect(mockFailedRequest).toHaveBeenCalledWith({ aname: 'avalue' });
     });
   });
 });

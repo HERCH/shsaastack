@@ -1,5 +1,4 @@
 using Application.Interfaces;
-using Application.Resources.Shared;
 using Common;
 using Common.Extensions;
 using Common.Recording;
@@ -49,7 +48,8 @@ public class RecordingApplicationSpec
         _recorder.Verify(rec => rec.Measure(It.IsAny<ICallContext>(), "aneventname",
             It.Is<Dictionary<string, object>>(dic =>
                 dic.Count == 5
-                && ((DateTime)dic[UsageConstants.Properties.Timestamp]).IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
+                && ((string)dic[UsageConstants.Properties.Timestamp]).FromIso8601()
+                .IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
                 && (string)dic[UsageConstants.Properties.IpAddress] == "anipaddress"
                 && (string)dic[UsageConstants.Properties.ReferredBy] == "areferer"
                 && (string)dic[UsageConstants.Properties.UserAgent] == "auseragent"
@@ -75,7 +75,8 @@ public class RecordingApplicationSpec
             It.Is<Dictionary<string, object>>(dic =>
                 dic.Count == 6
                 && (string)dic["aname"] == "avalue"
-                && ((DateTime)dic[UsageConstants.Properties.Timestamp]).IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
+                && ((string)dic[UsageConstants.Properties.Timestamp]).FromIso8601()
+                .IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
                 && (string)dic[UsageConstants.Properties.IpAddress] == "anipaddress"
                 && (string)dic[UsageConstants.Properties.ReferredBy] == "areferer"
                 && (string)dic[UsageConstants.Properties.UserAgent] == "auseragent"
@@ -98,7 +99,8 @@ public class RecordingApplicationSpec
             It.Is<Dictionary<string, object>>(dic =>
                 dic.Count == 6
                 && (string)dic[UsageConstants.Properties.Path] == "apath"
-                && ((DateTime)dic[UsageConstants.Properties.Timestamp]).IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
+                && ((string)dic[UsageConstants.Properties.Timestamp]).FromIso8601()
+                .IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
                 && (string)dic[UsageConstants.Properties.IpAddress] == "anipaddress"
                 && (string)dic[UsageConstants.Properties.ReferredBy] == "areferer"
                 && (string)dic[UsageConstants.Properties.UserAgent] == "auseragent"
@@ -117,7 +119,7 @@ public class RecordingApplicationSpec
         _application.RecordTraceAsync(_caller.Object, RecorderTraceLevel.Information, "amessage", args,
             CancellationToken.None);
 
-        _recorder.Verify(rec => rec.TraceInformation(It.IsAny<ICallContext>(), "amessage",
+        _recorder.Verify(rec => rec.Trace(It.IsAny<ICallContext>(), RecorderTraceLevel.Information, null, "amessage",
             // ReSharper disable once StructuredMessageTemplateProblem
             It.Is<object[]>(a =>
                 a.Length == 1
@@ -139,7 +141,8 @@ public class RecordingApplicationSpec
         _recorder.Verify(rec => rec.TrackUsage(It.IsAny<ICallContext>(), "aneventname",
             It.Is<Dictionary<string, object>>(dic =>
                 dic.Count == 5
-                && ((DateTime)dic[UsageConstants.Properties.Timestamp]).IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
+                && ((string)dic[UsageConstants.Properties.Timestamp]).FromIso8601()
+                .IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
                 && (string)dic[UsageConstants.Properties.IpAddress] == "anipaddress"
                 && (string)dic[UsageConstants.Properties.ReferredBy] == "areferer"
                 && (string)dic[UsageConstants.Properties.UserAgent] == "auseragent"
@@ -165,7 +168,8 @@ public class RecordingApplicationSpec
             It.Is<Dictionary<string, object>>(dic =>
                 dic.Count == 6
                 && (string)dic["aname"] == "avalue"
-                && ((DateTime)dic[UsageConstants.Properties.Timestamp]).IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
+                && ((string)dic[UsageConstants.Properties.Timestamp]).FromIso8601()
+                .IsNear(DateTime.UtcNow, TimeSpan.FromMinutes(1))
                 && (string)dic[UsageConstants.Properties.IpAddress] == "anipaddress"
                 && (string)dic[UsageConstants.Properties.ReferredBy] == "areferer"
                 && (string)dic[UsageConstants.Properties.UserAgent] == "auseragent"

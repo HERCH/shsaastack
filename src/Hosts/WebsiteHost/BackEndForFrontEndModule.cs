@@ -28,12 +28,13 @@ public class BackEndForFrontEndModule : ISubdomainModule
                     {
                         webApp.UseExceptionHandler("/Home/Error");
                     }
-                    
+
                     webApp.UseRouting();
                     webApp.MapControllerRoute("index", "index.html", new { controller = "Home", action = "Index" });
                     webApp.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
                     webApp.MapFallbackToController("Index", "Home"); // To support SPA applications
-                }, "Pipeline: MVC controllers and views are enabled"));
+                    return MiddlewareRegistration.Result.Report("Pipeline: MVC controllers and views are enabled");
+                }));
             };
         }
     }
@@ -55,6 +56,7 @@ public class BackEndForFrontEndModule : ISubdomainModule
                 services.AddSingleton<IFeatureFlagsApplication, FeatureFlagsApplication>();
                 services.AddSingleton<IRecordingApplication, RecordingApplication>();
                 services.AddSingleton<IAuthenticationApplication, AuthenticationApplication>();
+                services.AddSingleton<IOAuth2AuthorizationApplication, OAuth2AuthorizationApplication>();
                 services.AddSingleton<IServiceClient>(c =>
                     new InterHostServiceClient(c.GetRequiredService<IHttpClientFactory>(),
                         c.GetRequiredService<JsonSerializerOptions>(),

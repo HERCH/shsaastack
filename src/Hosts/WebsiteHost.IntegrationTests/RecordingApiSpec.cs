@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Application.Interfaces;
-using Application.Resources.Shared;
 using Common;
+using Common.Extensions;
 using Common.Recording;
 using Domain.Interfaces;
 using FluentAssertions;
@@ -41,7 +41,7 @@ public class RecordingApiSpec : WebsiteSpec<Program, ApiHost1.Program>
         _recorder.LastUsageEventName.Should().Be(UsageConstants.Events.Web.WebPageVisit);
         _recorder.LastUsageAdditional!.Count.Should().Be(6);
         _recorder.LastUsageAdditional![UsageConstants.Properties.Path].As<string>().Should().Be("apath");
-        _recorder.LastUsageAdditional![UsageConstants.Properties.Timestamp].As<DateTime>().Should()
+        _recorder.LastUsageAdditional![UsageConstants.Properties.Timestamp].As<string>().FromIso8601().Should()
             .BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
         _recorder.LastUsageAdditional![UsageConstants.Properties.IpAddress].As<string>().Should().Be("unknown");
         _recorder.LastUsageAdditional![UsageConstants.Properties.UserAgent].As<string>().Should().Be("unknown");
@@ -67,7 +67,7 @@ public class RecordingApiSpec : WebsiteSpec<Program, ApiHost1.Program>
         _recorder.LastUsageEventName.Should().Be("aneventname");
         _recorder.LastUsageAdditional!.Count.Should().Be(6);
         _recorder.LastUsageAdditional!["aname"].As<JsonElement>().GetString().Should().Be("avalue");
-        _recorder.LastUsageAdditional![UsageConstants.Properties.Timestamp].As<DateTime>().Should()
+        _recorder.LastUsageAdditional![UsageConstants.Properties.Timestamp].As<string>().FromIso8601().Should()
             .BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
         _recorder.LastUsageAdditional![UsageConstants.Properties.IpAddress].As<string>().Should().Be("unknown");
         _recorder.LastUsageAdditional![UsageConstants.Properties.UserAgent].As<string>().Should().Be("unknown");
@@ -108,7 +108,7 @@ public class RecordingApiSpec : WebsiteSpec<Program, ApiHost1.Program>
 
         _recorder.LastTraceMessages.Should().Contain(msg =>
             msg.Message == "amessage {aparam}"
-            && msg.Level == StubRecorderTraceLevel.Warning
+            && msg.Level == RecorderTraceLevel.Warning
             && msg.Arguments!.Length == 1 && ((JsonElement)msg.Arguments[0]).GetString() == "avalue");
     }
 
@@ -131,7 +131,7 @@ public class RecordingApiSpec : WebsiteSpec<Program, ApiHost1.Program>
         _recorder.LastMeasureAdditional!["aname"].As<JsonElement>().GetString().Should().Be("avalue");
         _recorder.LastMeasureAdditional![UsageConstants.Properties.ForId].As<string>().Should()
             .Be(CallerConstants.AnonymousUserId);
-        _recorder.LastMeasureAdditional![UsageConstants.Properties.Timestamp].As<DateTime>().Should()
+        _recorder.LastMeasureAdditional![UsageConstants.Properties.Timestamp].As<string>().FromIso8601().Should()
             .BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
         _recorder.LastMeasureAdditional![UsageConstants.Properties.IpAddress].As<string>().Should().Be("unknown");
         _recorder.LastMeasureAdditional![UsageConstants.Properties.UserAgent].As<string>().Should().Be("unknown");

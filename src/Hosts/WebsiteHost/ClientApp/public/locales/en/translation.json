@@ -1,8 +1,14 @@
 {
   "app": {
+    "name": "SaaStack",
     "languages": {
       "en": "English",
       "fr": "French"
+    }
+  },
+  "actions": {
+    "errors": {
+      "offline": "Cannot execute command action when browser is offline"
     }
   },
   "components": {
@@ -28,16 +34,6 @@
       }
     },
     "layout": {
-      "main_navigation": {
-        "logo": "SaaStack",
-        "links": {
-          "logout": "Logout",
-          "profile": "Settings...",
-          "organizations": "Organizations...",
-          "search_cars": "Search Cars",
-          "reserve_car": "Reserve Car"
-        }
-      },
       "footer": {
         "copyright": "© {{currentYear}} SaaStack. All rights reserved.",
         "links": {
@@ -45,6 +41,18 @@
           "about": "About",
           "terms": "Terms",
           "privacy": "Privacy"
+        }
+      }
+    },
+    "navigation": {
+      "main_menu": {
+        "logo": "SaaStack",
+        "links": {
+          "logout": "Logout",
+          "profile": "Settings...",
+          "organizations": "Organizations...",
+          "search_cars": "Search Cars",
+          "reserve_car": "Reserve Car"
         }
       }
     },
@@ -71,6 +79,7 @@
       "home_anonymous": {
         "title": "Welcome back to SaaStack",
         "providers": {
+          "fakesso": "Sign in with Fake SSO Provider",
           "microsoft": "Sign in with Microsoft",
           "google": "Sign in with Google",
           "credentials": "Sign in with Email"
@@ -84,7 +93,7 @@
       },
       "home_authenticated": {
         "links": {
-          "search_cars": "Find a Car",
+          "search_cars": "Search Cars",
           "reserve_car": "Reserve Car"
         }
       }
@@ -129,7 +138,8 @@
           "register": {
             "question": "Don't have an account?",
             "text": "Create one"
-          }
+          },
+          "forgot_password": "Forgot your password?"
         }
       },
       "credentials_register": {
@@ -181,22 +191,22 @@
         }
       },
       "credentials_register_redirect": {
-        "title": "Registration Successful!",
+        "title": "Next Step",
         "confirmation_message": {
           "title": "Check Your Email",
-          "message": "We've sent a confirmation email to your inbox. Please check your email and click the confirmation link to activate your account."
+          "message": "We've sent you an email with a confirmation link to activate your account."
         },
         "instructions": {
           "title": "What to do next",
           "steps": {
-            "step1": "Check your email inbox (and spam folder)",
+            "step1": "Check your email inbox (and spam or junk folder)",
             "step2": "Look for an email from SaaStack",
             "step3": "Click the confirmation link in the email"
           }
         },
         "troubleshoot": {
           "question": "Didn't receive the email?",
-          "answer": "It may take a few minutes to arrive. If you still don't see it, check your spam folder or contact support."
+          "answer": "It may take a few minutes to arrive. If you still don't see it, check your spam and junk folders or contact support."
         },
         "links": {
           "home": "Back to Home"
@@ -205,31 +215,32 @@
       "credentials_register_confirm": {
         "title": "Confirm Your Registration",
         "states": {
+          "invalid": {
+            "title": "Invalid Request",
+            "message": "No token was provided. Please use the link from your email."
+          },
           "confirming": {
             "title": "Confirming Registration",
-            "message": "One moment please...",
-            "errors": {
-              "token_missing": "This registration link is invalid. Please check your email."
-            }
-          },
-          "success": {
-            "title": "Registration Confirmed!",
-            "message": "Your account has been successfully registered, please sign in."
-          },
-          "failed": {
-            "title": "Confirmation Failed",
-            "message": "Please contact support.",
+            "loader": "Please wait while we confirm your registration",
             "errors": {
               "token_expired": "Your registration link has expired. Please request to send a new one.",
               "token_used": "You are already registered. Please sign in."
             }
           },
-          "resend": {
+          "registered": {
+            "title": "Registration Complete!",
+            "message": "Your account has been successfully registered, please sign in."
+          },
+          "resending": {
             "title": "Resend Confirmation",
-            "success": "We have sent you a new confirmation email. Please check your email.",
+            "loader": "Sending",
             "errors": {
+              "token_expired": "Your registration link has expired. Please request to send a new one.",
               "token_used": "This registration link is invalid, and cannot be used to resend a confirmation email. Please check your email."
             }
+          },
+          "resent": {
+            "message": "We have sent you a new confirmation email. Please check your email."
           }
         },
         "links": {
@@ -237,8 +248,156 @@
           "login": "Sign In"
         }
       },
-      "sso_microsoft": {
-        "title": "Sign In With Microsoft"
+      "credentials_password_reset_initiate": {
+        "title": "Reset Password",
+        "description": "Enter your email address and we'll send you a link to reset your password.",
+        "form": {
+          "fields": {
+            "email": {
+              "label": "Email Address",
+              "placeholder": "Enter your email address",
+              "validation": "Please enter a valid email address"
+            }
+          },
+          "submit": {
+            "label": "Send Reset Link"
+          }
+        },
+        "errors": {
+          "user_not_registered": "This email address is not yet registered."
+        },
+        "links": {
+          "login": {
+            "question": "Remembered your password?",
+            "text": "Sign in"
+          },
+          "home": "Back to Home"
+        }
+      },
+      "credentials_password_reset_redirect": {
+        "title": "Next Step",
+        "confirmation_message": {
+          "title": "Check Your Email",
+          "message": "We've sent you an email with a link to reset your password."
+        },
+        "instructions": {
+          "title": "What to do next",
+          "steps": {
+            "step1": "Check your email inbox (and spam or junk folder)",
+            "step2": "Look for an email from SaaStack",
+            "step3": "Click the password reset link in the email"
+          }
+        },
+        "troubleshoot": {
+          "question": "Didn't receive the email?",
+          "answer": "It may take a few minutes to arrive. If you still don't see it, check your spam and junk folders or contact support."
+        },
+        "links": {
+          "home": "Back to Home"
+        }
+      },
+      "credentials_password_reset_complete": {
+        "title": "New Password",
+        "description": "Enter your new password below.",
+        "form": {
+          "fields": {
+            "password": {
+              "label": "New Password",
+              "placeholder": "Enter your new password",
+              "validation": "Password must be between 8 and 200 characters"
+            },
+            "confirm_password": {
+              "label": "Confirm Password",
+              "placeholder": "Confirm your new password",
+              "validation": "Passwords do not match"
+            }
+          },
+          "submit": {
+            "label": "Reset Password"
+          }
+        },
+        "states": {
+          "invalid": {
+            "title": "Invalid Request",
+            "message": "No token was provided. Please use the link from your email."
+          },
+          "verifying": {
+            "title": "Verifying Reset Link",
+            "loader": "Please wait while we verify your password reset link",
+            "errors": {
+              "token_expired": "This password reset link has expired. Please start again.",
+              "token_invalid": "This password reset link is invalid. Please start again."
+            }
+          },
+          "completing": {
+            "errors": {
+              "token_expired": "This password reset link has expired. Please start again.",
+              "token_invalid": "This password reset link is invalid. Please start again.",
+              "invalid_password": "The password you entered is not a valid password.",
+              "duplicate_password": "You cannot use the same password as your current password, please use a different password."
+            }
+          },
+          "completed": {
+            "title": "Password Reset Successfully!",
+            "message": "Your password has been successfully reset, please sign in with your new password."
+          }
+        },
+        "links": {
+          "request_reset": "Start Again",
+          "login": "Back to Sign In",
+          "home": "Back to Home"
+        }
+      },
+      "sso_login": {
+        "title": "Sign In With {{provider}}",
+        "loaders": {
+          "authorizing": "Authorizing with {{provider}}",
+          "authenticating": "Signing in to SaaStack"
+        },
+        "errors": {
+          "unauthorized": "{{provider}} denied access",
+          "oauth2": "You could not be authorized by {{provider}}, error was: {{error}}."
+        },
+        "links": {
+          "home": "Go Home"
+        }
+      },
+      "oauth2_authorize": {
+        "title": "Authorize User",
+        "loader": "Authorizing",
+        "states": {
+          "redirected": {
+            "title": "Redirecting you to the appropriate page"
+          }
+        },
+        "errors": {
+          "bad_request": "This was request was invalid, or the application is not configured correctly, please check the parameters. More details: {{error}}"
+        }
+      },
+      "oauth2_consent_client": {
+        "title": "Authorize Application",
+        "loader": "Loading application details...",
+        "header": {
+          "title": "Let this app access your info?"
+        },
+        "labels": {
+          "permissions": "{{appName}} needs your permission to:",
+          "scopes": {
+            "openid": "Verify your identity",
+            "profile": "View your basic profile",
+            "email": "View your email address"
+          },
+          "security": {
+            "title": "Security Notice",
+            "message": "Only authorize applications you trust. You can revoke access at any time from your account settings."
+          },
+          "privacy_notice": "By authorizing, you agree to share the requested information with this application."
+        },
+        "actions": {
+          "authorize": "Accept",
+          "authorizing": "Authorizing...",
+          "deny": "Deny"
+        }
       }
     },
     "bookings": {
@@ -252,6 +411,19 @@
       }
     },
     "organizations": {
+      "labels": {
+        "roles": {
+          "tnt_own": "Org Owner",
+          "tnt_mem": "Member",
+          "tnt_bill_adm": "Billing Admin"
+        },
+        "features": {
+          "tnt_basic": "Free",
+          "tnt_paidtrial": "Trial",
+          "tnt_paid2": "Paid 2",
+          "tnt_paid3": "Paid 3"
+        }
+      },
       "manage": {
         "title": "Organizations",
         "loader": {
@@ -273,34 +445,105 @@
           "ownership": "This is your (one and only) personal organization. You cannot delete it, you cannot leave it, and you cannot invite others into it",
           "current": "This as your current organization",
           "switch_default": "Switch to this as your current organization",
-          "edit": "Switch to this as your current organization"
+          "edit": "View details",
+          "members": "Manage members"
         },
         "errors": {
           "forbidden": "The current user may not have access to this organization at this time, please reauthenticate"
         },
         "links": {
           "new": "Create New Organization"
-        }
+        },
+        "empty": "No organizations found"
       },
       "edit": {
-        "title": "Edit Organization",
+        "title": "Organization Details",
         "loader": {
           "title": "Loading organization"
         },
-        "form": {
-          "fields": {
-            "name": {
-              "label": "Name",
-              "placeholder": "Your organization name",
-              "validation": "Must be between 1 and 100 characters"
+        "errors": {
+          "forbidden": "The current user may not have access to this organization at this time, please reauthenticate"
+        },
+        "tabs": {
+          "details": {
+            "title": "Details",
+            "form": {
+              "fields": {
+                "name": {
+                  "label": "Name",
+                  "placeholder": "Your organization name",
+                  "validation": "Must be between 1 and 100 characters"
+                }
+              },
+              "submit": {
+                "label": "Save Changes"
+              }
+            },
+            "errors": {
+              "invalid_image": "The image can only be a jpeg, png, or gif, and no larger than 100MB"
             }
           },
-          "submit": {
-            "label": "Save Changes"
+          "members": {
+            "title": "Members",
+            "loader": "Loading members",
+            "labels": {
+              "self": "You",
+              "unregistered": "Invitation Pending",
+              "email_address": "Email Address",
+              "roles": "Roles"
+            },
+            "hints": {
+              "refresh": "Refresh the list of members",
+              "uninvite": "Remove this member from the organization"
+            },
+            "errors": {
+              "list": {
+                "not_member": "You are not a member of this organization",
+                "not_owner": "You must be an owner of this organization to view and manage members."
+              },
+              "invite": {
+                "personal_organization": "You cannot invite members to a personal organization",
+                "not_owner": "You must be an owner of this organization to invite other members."
+              },
+              "uninvite": {
+                "personal_organization": "You cannot remove members from a personal organization",
+                "not_owner": "You must be an owner of this organization to remove members."
+              },
+              "assign_roles": {
+                "not_owner": "You must be an owner of this organization to assign roles.",
+                "not_member": "This user is not a member of this organization."
+              },
+              "unassign_roles": {
+                "not_owner": "You must be an owner of this organization to unassign roles.",
+                "not_member": "This user is not a member of this organization."
+              }
+            },
+            "invite_form": {
+              "toggle": {
+                "show": "Invite Member",
+                "cancel": "Cancel"
+              },
+              "fields": {
+                "email": {
+                  "label": "Invitee's Email Address",
+                  "placeholder": "Enter email address",
+                  "validation": "Must be a valid email address"
+                }
+              },
+              "submit": {
+                "label": "Invite"
+              }
+            },
+            "role_form": {
+              "fields": {
+                "role": {
+                  "label": "Change Role",
+                  "placeholder": "Select new role"
+                }
+              }
+            },
+            "empty": "No members found"
           }
-        },
-        "errors": {
-          "invalid_image": "The image can only be a jpeg, png, or gif, and no larger than 100MB"
         },
         "links": {
           "organizations": "Back to Organizations"
@@ -309,17 +552,34 @@
       "new": {
         "title": "New Organization",
         "links": {
-          "organizations": "Back to Organizations"
+          "organizations": "Back to Organizations",
+          "logout": "Logout"
         },
         "messages": {
           "confirmation": {
             "title": "Organization Created",
-            "message": "Your organization has been created, but you will first need to logout and sign in again to access it."
+            "message": "Your organization has been created, but you will first need to <1>{{logout}}</1> and then sign back in to access it."
           }
+        },
+        "errors": {
+          "invalid_domain": "Your email address cannot be used to create a shared organization, it potentially represents a personal or temporary email address",
+          "duplicate_domain": "Somebody from your organization may have already created an organization for your company email address. Contact your company administrator to get invited to that organization"
         }
       }
     },
     "profiles": {
+      "labels": {
+        "roles": {
+          "plt_std": "Ordinary",
+          "plt_ops": "Operator"
+        },
+        "features": {
+          "plt_basic": "Free",
+          "plt_paidtrial": "Trial",
+          "plt_paid2": "Paid 2",
+          "plt_paid3": "Paid 3"
+        }
+      },
       "manage": {
         "title": "Settings",
         "loader": {
@@ -328,6 +588,9 @@
         "tabs": {
           "profile": {
             "title": "Profile",
+            "hints": {
+              "upload": "Change"
+            },
             "form": {
               "fields": {
                 "display_name": {
@@ -358,8 +621,8 @@
             "title": "Account",
             "form": {
               "fields": {
-                "name": {
-                  "label": "Name"
+                "display_name": {
+                  "label": "Preferred Name"
                 },
                 "email_address": {
                   "label": "Email Address"

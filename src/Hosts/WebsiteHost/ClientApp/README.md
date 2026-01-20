@@ -2,7 +2,7 @@
 
 This explains how the JavaScript App is built and deployed, and how its components work.
 
-IMPORTANT: Make sure you have already set up your local environment for developing the JS App, from the instructions in the main [README.md](../../../../README_DERIVATIVE.md).
+IMPORTANT: Make sure you have already set up your local environment for developing the JS App, from the instructions in the main [README.md](../../../../README.md).
 
 ## Packaging & Bundling
 
@@ -11,10 +11,13 @@ We use [Vite](https://vitejs.dev/) for fast development and building, which outp
 ### Bundling
 
 Vite treats 'development' builds and 'production' builds very differently. It also supports a hot-loading dev server.
-We support a mixed mode environment, where you can use the dev server (without hot-loading), or not use the dev server. It is your choice.
+
+We support a mixed mode environment, where you can use the dev server (with hot-loading), or just use the compiled JavaScript bundle. It is your choice.
 
 * When you use `npm run dev` it starts a Vite dev server on port 5173, which serves the JavaScript files from the `src` folder.
 * When you use `npm run build` it compiles and bundles the JavaScript files from the `src` folder into a single bundle in the `wwwroot` folder.
+* 
+> Note: some changes to some files (particularly those outside the `src` folder, like `translation.json` and any images), will require  you to run `npm run build` if running the dev server
 
 We are deliberately rendering the `Index.html` page server-side (see: `HomeController.cs`) for security purposes, thus we need to load the correct JavaScript and CSS files into `Index.html` at runtime both locally and in production.
 
@@ -22,7 +25,7 @@ We are deliberately rendering the `Index.html` page server-side (see: `HomeContr
 * In 'production' mode, we need to reference the vite compiled JavaScript bundle from the `https://app.saastack.com/BSaMLVRv.bundle.js` folder (which is located in the `wwwroot` folder).
 
 
-> Everytime the `npm run build` command is run (as is expected in CI/CD for 'production' builds), the `jsapp.build.json` file is updated with the latest bundle file names.
+> Everytime the `npm run build` command is run (as is expected in CI/CD for 'production' builds), the `jsapp.build.json` file is updated with the latest bundle file names, and version.
 
 > However, when `npm run dev` is executed this file is not updated!
 
@@ -33,9 +36,9 @@ This data is then injected into the `Index.html` page.
 
 ## API Definitions
 
-We use AXIOS to call the APIs in the BEFFE.
+We use Fetch to call the APIs in the BEFFE.
 
-We generate all AXIOS services automatically for you by examining the BEFFE API and the BACKEND APIs, and then generate the services for you.
+We generate all Fetch services automatically for you (using @hey-api/openapi-ts) by examining the BEFFE API and the BACKEND APIs, and then generate the services for you.
 
 You can update those definitions at any time by running `npm run update:apis` to keep the backend and frontend in sync.
 
@@ -43,7 +46,7 @@ You can update those definitions at any time by running `npm run update:apis` to
 
 ### Actions
 
-Generally speaking, we do not call the generated AXIOS services directly, but instead we wrap them in a `useQuery` or `useMutation` hook, that provides additional functionality, such as error handling, loading states, caching etc.
+Generally speaking, we do not call the generated Fetch services directly, but instead we wrap them in a `useQuery` or `useMutation` hook, that provides additional functionality, such as error handling, loading states, caching etc.
 
 These actions can be use directly in code anywhere. But they can also be attached to forms using 'Action-enabled' components, such as (using the `<FormAction/>` component), behind buttons (using the `<ButtonAction/>`), and anywhere on pages (using the `<PageAction/>` component).
 
@@ -55,7 +58,7 @@ This is the recommended approach to build your pages because these 'Action-enabl
 5. Caching responses, when the action is successful.
 6. Invalidating caches, when the action is successful.
 
-> See the [JavaScript Action](../../../docs/design-principles/0200-javascript-actions.md) for more details.
+> See the [JavaScript Action](../../../../docs/design-principles/0200-javascript-actions.md) for more details.
 
 ### Caching
 
@@ -116,7 +119,7 @@ We use [Vitest](https://vitest.dev/) for unit testing, which provides a Jest-com
 Configuration is defined in `.env` files.
 
 * When running locally, `npm run dev` will use the `.env` file, and will overwrite any values defined in `.env.local` file.
-* When building for production, `npm run build` will use the `.env.deploy` file.
+* When building for production, `npm run build` will use the `.env.production` file. See: https://vite.dev/guide/env-and-mode
 
 There is a special variable called: `window.isTestingOnly` which you SHOULD use to conditionally execute code that is only relevant in local or CI testing environments.
 
@@ -186,7 +189,7 @@ We strongly recommend driving your pages using either: `FormAction` for interact
 
 These components take care of error handling and monitoring of the XHR action to give users visual clues about what is going on. This is the value of using actions to begin with. You will need to take care of these things yourself, if you do NOT use actions. It is a lot of work that is often forgotten until users complain that the application does not work. 
 
-> See more on why you should "actions" here: [JavaScript Actions](../../../docs/design-principles/0200-javascript-actions.md)
+> See more on why you should "actions" here: [JavaScript Actions](../../../../docs/design-principles/0200-javascript-actions.md)
 
 
 ### Tailwind Styling

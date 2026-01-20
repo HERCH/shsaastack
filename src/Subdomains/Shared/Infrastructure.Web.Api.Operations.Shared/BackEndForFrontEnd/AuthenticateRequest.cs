@@ -18,6 +18,8 @@ public class AuthenticateRequest : UnTenantedRequest<AuthenticateRequest, Authen
 {
     public string? AuthCode { get; set; }
 
+    public string? CodeVerifier { get; set; }
+
     public string? Password { get; set; }
 
     [Required] public string? Provider { get; set; }

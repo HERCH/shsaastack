@@ -11,6 +11,8 @@ public static class CommonValidations
     public static readonly Validation CountryCode = new(CountryCodes.Exists);
     public static readonly Validation EmailAddress = new(
         @"^(?:[\w\!\#\$\%\&\'\*\+\-\/\=\?\^\`\{\|\}\~]+\.)*[\w\!\#\$\%\&\'\*\+\-\/\=\?\^\`\{\|\}\~]+@(?:(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-](?!\.)){0,61}[a-zA-Z0-9]?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-](?!$)){0,61}[a-zA-Z0-9]?)|(?:\[(?:(?:[01]?\d{1,2}|2[0-4]\d|25[0-5])\.){3}(?:[01]?\d{1,2}|2[0-4]\d|25[0-5])\]))$");
+    public static readonly Validation EmailDomain =
+        new(@"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$", 3, 253);
     public static readonly Validation FeatureLevel = new(@"^[\w\d]{4,60}$", 4, 60);
 
     public static readonly Validation GuidN = new(@"^[0-9a-f]{32}$", 32, 32);
@@ -295,5 +297,14 @@ public static class CommonValidations
 
             return roundedUpToNearestFour;
         }
+    }
+
+    public static class OAuth2
+    {
+        public static readonly Validation
+            CodeChallenge =
+                new(@"^[A-Za-z0-9_\-\.\~\+\/\=]{1,500}$", 1,
+                    500); // Is either the same as the code verifier,or a base64 encoded hashed version of it
+        public static readonly Validation CodeVerifier = new(@"^[A-Za-z0-9_\-\.\~]{43,128}$", 43, 128);
     }
 }

@@ -4,10 +4,10 @@ using Application.Interfaces;
 using Application.Resources.Shared;
 using Common;
 using Common.Extensions;
+using Infrastructure.Web.Common.Extensions;
 using Microsoft.AspNetCore.Http;
 
 namespace Infrastructure.Web.Hosting.Common.Extensions;
-
 
 public static class RequestExtensions
 {
@@ -52,6 +52,27 @@ public static class RequestExtensions
         {
             return Optional<Claim[]>.None;
         }
+    }
+
+    /// <summary>
+    ///     Returns the cookie options for the cookie
+    ///     It is imperative that cookies are not accessible to JavaScript, and is sent only over HTTPS.
+    /// </summary>
+    public static CookieOptions GetCookieOptions(this DateTime? expires)
+    {
+        var options = new CookieOptions
+        {
+            Path = AuthenticationConstants.Cookies.CookieOptions.Path,
+            HttpOnly = AuthenticationConstants.Cookies.CookieOptions.HttpOnly,
+            Secure = AuthenticationConstants.Cookies.CookieOptions.Secure,
+            SameSite = AuthenticationConstants.Cookies.CookieOptions.SameSite.ToEnumOrDefault(SameSiteMode.Lax),
+            Expires = expires.HasValue
+                ? new DateTimeOffset(expires.Value)
+                : null,
+            MaxAge = expires?.Subtract(DateTime.UtcNow)
+        };
+
+        return options;
     }
 
     /// <summary>
@@ -103,6 +124,19 @@ public static class RequestExtensions
         }
 
         return userId.Value.ToOptional();
+    }
+
+    /// <summary>
+    ///     Whether any authorization method has been provided in the request
+    /// </summary>
+    public static bool IsAnyAuthorizationProvided(this HttpRequest request)
+    {
+        return request.GetTokenAuth().HasValue
+               || request.GetAPIKeyAuth().HasValue
+               || request.GetBasicAuth().Username.HasValue
+               || request.GetHMACAuth().HasValue
+               || request.GetPrivateInterHostAuth().HasValue
+               || request.GetTokenFromAuthNCookies().HasValue;
     }
 
     /// <summary>
@@ -165,28 +199,5 @@ public static class RequestExtensions
         {
             return Optional<string>.None;
         }
-    }
-
-    /// <summary>
-    ///     Returns the cookie options for the cookie
-    ///     It is imperative that this cookie is not accessible to JavaScript, and is sent only over HTTPS.
-    /// </summary>
-    private static CookieOptions GetCookieOptions(DateTime? expires)
-    {
-        var options = new CookieOptions
-        {
-            Path = "/",
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Lax,
-            Expires = expires.HasValue
-                ? new DateTimeOffset(expires.Value)
-                : null,
-            MaxAge = expires.HasValue
-                ? expires.Value.Subtract(DateTime.UtcNow)
-                : null
-        };
-
-        return options;
     }
 }

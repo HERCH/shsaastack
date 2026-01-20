@@ -56,7 +56,8 @@ namespace ApiHost1
                 .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.HttpRecordingFilter>()
                 .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ApiUsageFilter>()
                 .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.RequestCorrelationFilter>()
-                .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ContentNegotiationFilter>();
+                .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ContentNegotiationFilter>()
+                .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.MultiTenancyFilter>();
 #if TESTINGONLY
             testingwebapiGroup.MapGet("/testingonly/authn/hmac/get",
                 async (global::System.IServiceProvider serviceProvider, global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.GetCallerWithHMACTestingOnlyRequest request) =>
@@ -74,7 +75,7 @@ namespace ApiHost1
                     }
                 })
                 .RequireAuthorization("HMAC")
-                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|platform_basic_features|]},|Roles|:{|Platform|:[|platform_internal_service|]}}")
+                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|plt_basic|]},|Roles|:{|Platform|:[|plt_internal_svc|]}}")
                 .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ValidationFilter<global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.GetCallerWithHMACTestingOnlyRequest>>()
                 .WithOpenApi(op =>
                     {
@@ -121,7 +122,7 @@ namespace ApiHost1
                     }
                 })
                 .RequireAuthorization("Token")
-                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|platform_basic_features|]},|Roles|:{|Platform|:[|platform_standard|]}}")
+                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|plt_basic|]},|Roles|:{|Platform|:[|plt_std|]}}")
                 .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ValidationFilter<global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.GetCallerWithTokenOrAPIKeyTestingOnlyRequest>>()
                 .WithOpenApi(op =>
                     {
@@ -174,7 +175,7 @@ namespace ApiHost1
                     }
                 })
                 .RequireAuthorization("Token")
-                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|platform_paidtrial_features|]},|Roles|:{|Platform|:[|platform_standard|]}}")
+                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|plt_paidtrial|]},|Roles|:{|Platform|:[|plt_std|]}}")
                 .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ValidationFilter<global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.AuthorizeByFeatureTestingOnlyRequest>>()
                 .WithOpenApi(op =>
                     {
@@ -201,7 +202,7 @@ namespace ApiHost1
                     }
                 })
                 .RequireAuthorization("Token")
-                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|platform_basic_features|]},|Roles|:{|Platform|:[|platform_standard|]}}")
+                .RequireAuthorization("RolesAndFeatures:{|Features|:{|Platform|:[|plt_basic|]},|Roles|:{|Platform|:[|plt_std|]}}")
                 .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ValidationFilter<global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.AuthorizeByTokenWithRoleTestingOnlyRequest>>()
                 .WithOpenApi(op =>
                     {
@@ -571,6 +572,32 @@ namespace ApiHost1
                     {
                         op.OperationId = "GetInsecureTestingOnly";
                         op.Description = "(request type: GetInsecureTestingOnlyRequest)";
+                        op.Responses.Clear();
+                        return op;
+                    });
+#endif
+#if TESTINGONLY
+            testingwebapiGroup.MapGet("/testingonly/tenanted",
+                async (global::System.IServiceProvider serviceProvider, global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.GetTenantedTestingOnlyRequest request) =>
+                {
+                    return await Handle(serviceProvider, request, global::System.Threading.CancellationToken.None);
+
+                    static async Task<global::Microsoft.AspNetCore.Http.IResult> Handle(global::System.IServiceProvider services, global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.GetTenantedTestingOnlyRequest request, global::System.Threading.CancellationToken cancellationToken)
+                    {
+                        var callerFactory = services.GetRequiredService<global::Infrastructure.Interfaces.ICallerContextFactory>();
+                        var serviceProvider = services.GetRequiredService<global::System.IServiceProvider>();
+
+                        var api = new global::ApiHost1.Api.TestingOnly.TestingWebApi(callerFactory, serviceProvider);
+                        var result = await api.MultiTenancy(request, cancellationToken);
+                        return result.HandleApiResult(global::Infrastructure.Web.Api.Interfaces.OperationMethod.Get);
+                    }
+                })
+                .RequireAuthorization("Anonymous")
+                .AddEndpointFilter<global::Infrastructure.Web.Api.Common.Endpoints.ValidationFilter<global::Infrastructure.Web.Api.Operations.Shared.TestingOnly.GetTenantedTestingOnlyRequest>>()
+                .WithOpenApi(op =>
+                    {
+                        op.OperationId = "GetTenantedTestingOnly";
+                        op.Description = "(request type: GetTenantedTestingOnlyRequest)";
                         op.Responses.Clear();
                         return op;
                     });

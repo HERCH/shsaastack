@@ -6,12 +6,12 @@ import { createComponentId } from '../Components';
 import Loader from '../loader/Loader.tsx';
 import UnhandledError from '../unhandledError/UnhandledError.tsx';
 
-
 export interface PageActionProps<TRequestData = any, ExpectedErrorCode extends string = any, TResponse = any> {
   id?: string;
   children?: React.ReactNode;
   action: ActionResult<TRequestData, ExpectedErrorCode, TResponse>;
   expectedErrorMessages?: Record<ExpectedErrorCode, string>;
+  overrideExpectedErrorMessages?: boolean;
   onSuccess?: (params: { requestData?: TRequestData; response: TResponse }) => void;
   loadingMessage?: string;
 }
@@ -36,7 +36,8 @@ const PageAction = forwardRef<PageActionRef<any>, PageActionProps<any, any, any>
   TResponse = any
 >(props: PageActionProps<TRequestData, ExpectedErrorCode, TResponse>, ref: React.Ref<PageActionRef<TRequestData>>) {
   const { t: translate } = useTranslation();
-  const { id, children, action, expectedErrorMessages, onSuccess, loadingMessage } = props;
+  const { id, children, action, expectedErrorMessages, onSuccess, loadingMessage, overrideExpectedErrorMessages } =
+    props;
   const lastExpectedError = action.lastExpectedError
     ? (expectedErrorMessages?.[action.lastExpectedError.code] ?? action.lastExpectedError.code)
     : undefined;
@@ -60,7 +61,8 @@ const PageAction = forwardRef<PageActionRef<any>, PageActionProps<any, any, any>
     isSuccess
   }));
 
-  const canShowContent = !isExecuting && isSuccess;
+  const overridingErrorHandling = !isExecuting && !isSuccess && overrideExpectedErrorMessages;
+  const canShowContent = (!isExecuting && isSuccess) || overridingErrorHandling;
 
   return (
     <div data-testid={componentId}>
@@ -68,13 +70,16 @@ const PageAction = forwardRef<PageActionRef<any>, PageActionProps<any, any, any>
         <Loader
           id={`${componentId}_loader`}
           message={loadingMessage ? loadingMessage : translate('components.page.page_action.loader.title')}
+          type="inline"
         />
       )}
       {canShowContent && children && <div data-testid={`${componentId}_content`}>{children}</div>}
-      <div className="mt-4">
-        {lastExpectedError && <Alert id={`${componentId}_expected_error`} message={lastExpectedError} type="error" />}
-        {lastUnexpectedError && <UnhandledError id={`${componentId}_unexpected_error`} error={lastUnexpectedError} />}
-      </div>
+      {!overridingErrorHandling && (
+        <div className="mt-4">
+          {lastExpectedError && <Alert id={`${componentId}_expected_error`} message={lastExpectedError} type="error" />}
+          {lastUnexpectedError && <UnhandledError id={`${componentId}_unexpected_error`} error={lastUnexpectedError} />}
+        </div>
+      )}
     </div>
   );
 }) as <TRequestData = any, ExpectedErrorCode extends string = any, TResponse = any>(

@@ -1,14 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { toast } from 'react-toastify';
-import { AxiosError } from 'axios';
-import { ActionRequestData, ActionResult } from '../../actions/Actions';
+import { ActionResult, ErrorResponse } from '../../actions/Actions.ts';
 import { ExpectedErrorDetails } from '../../actions/ApiErrorState.ts';
 import { OfflineServiceContext } from '../../providers/OfflineServiceContext.tsx';
 import { IOfflineService } from '../../services/IOfflineService.ts';
 import Alert from '../alert/Alert.tsx';
 import { OfflineBanner } from '../offline/OfflineBanner.tsx';
 import ButtonAction from './ButtonAction.tsx';
-
 
 const meta: Meta<typeof ButtonAction> = {
   title: 'Components/Button/ButtonAction',
@@ -26,7 +24,7 @@ const meta: Meta<typeof ButtonAction> = {
     },
     variant: {
       control: { type: 'select' },
-      options: ['primary', 'secondary', 'outline', 'ghost', 'danger']
+      options: ['brand-primary', 'brand-secondary', 'outline', 'ghost', 'danger']
     },
     busyLabel: {
       control: 'text'
@@ -47,17 +45,13 @@ const mockOfflineService = {
   }
 } as IOfflineService;
 
-const createMockAction = <
-  TRequestData extends ActionRequestData,
-  TResponse = any,
-  ExpectedErrorCode extends string = any
->(
+const createMockAction = <TRequestData extends any, TResponse = any, ExpectedErrorCode extends string = any>(
   initial: { isReady: boolean; isExecuting: boolean } = { isReady: true, isExecuting: false },
   final: {
     isSuccess?: boolean;
     lastSuccessResponse?: TResponse;
     lastExpectedError?: ExpectedErrorDetails<ExpectedErrorCode>;
-    lastUnexpectedError?: AxiosError;
+    lastUnexpectedError?: ErrorResponse;
   } = {
     isSuccess: true,
     lastSuccessResponse: { data: {} } as TResponse,
@@ -138,34 +132,30 @@ export const ReturnsUnexpectedError: Story = {
         isSuccess: false,
         lastExpectedError: undefined,
         lastUnexpectedError: {
-          isAxiosError: true,
-          message: 'BadRequest',
+          data: {
+            type: 'https://datatracker.ietf.org/doc/html/rfc9110#section-15.5',
+            title: 'Bad Request',
+            status: 400,
+            detail: "'First Name' must not be empty.'",
+            instance: 'https://localhost:5001/post',
+            errors: [
+              {
+                reason: "'First Name' must not be empty.",
+                rule: 'NotEmptyValidator',
+                value: ''
+              },
+              {
+                reason: "The 'FirstName' was either missing or is invalid",
+                rule: 'ValidatorValidator',
+                value: ''
+              }
+            ]
+          },
           response: {
             status: 400,
-            statusText: 'BadRequest',
-            data: {
-              type: 'https://datatracker.ietf.org/doc/html/rfc9110#section-15.5',
-              title: 'Bad Request',
-              status: 400,
-              detail: "'First Name' must not be empty.",
-              instance: 'https://localhost:5001/credentials/register',
-              errors: [
-                {
-                  reason: "'First Name' must not be empty.",
-                  rule: 'NotEmptyValidator',
-                  value: ''
-                },
-                {
-                  reason: "The 'FirstName' was either missing or is invalid",
-                  rule: 'ValidatorValidator',
-                  value: ''
-                }
-              ]
-            },
-            headers: {},
-            config: {} as any
-          }
-        } as AxiosError
+            statusText: 'Bad Request'
+          } as Response
+        } as ErrorResponse
       }
     ),
     label: 'Click me',

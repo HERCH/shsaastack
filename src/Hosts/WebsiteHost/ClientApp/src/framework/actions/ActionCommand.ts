@@ -1,44 +1,38 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import { useTranslation } from 'react-i18next';
 import { useOfflineService } from '../providers/OfflineServiceContext.tsx';
 import { recorder, SeverityLevel } from '../recorder.ts';
-import { ActionResult, modifyRequestData } from './Actions.ts';
+import { ActionResult, ApiResponse, executeRequest, handleRequestError, modifyRequestData } from './Actions.ts';
 import useApiErrorState from './ApiErrorState.ts';
-
 
 export interface ActionCommandConfiguration<
   TRequestData = any,
   ExpectedErrorCode extends string = '',
   TResponse = any
 > {
-  // The generated AXIOS endpoint we need to call
-  request: (
-    requestData: TRequestData,
-    throwOnError?: boolean
-  ) => Promise<
-    | (AxiosResponse<TResponse, any> & { error: undefined })
-    | (AxiosError<unknown, any> & { data: undefined; error: unknown })
-  >;
+  // The generated Fetch endpoint we need to call
+  request: (requestData: TRequestData, throwOnError?: boolean) => Promise<ApiResponse<TResponse>>;
   // Whether the request is tenanted or not
   isTenanted?: boolean;
   // What to do in the case of a successful response
-  onSuccess?: (response: TResponse) => void;
+  onSuccess?: (requestData: TRequestData, response: TResponse, statusCode: number, headers: Headers) => void;
   // What kind of known errors are we expecting to handle ourselves
   passThroughErrors?: Record<number, ExpectedErrorCode>;
   // The keys in the request cache that we want to invalidate, in the case of successful response
   invalidateCacheKeys?: readonly unknown[];
 }
 
-// Use this hook for calling @hey-api generated AXIOS generated endpoints for POST, PUT, PATCH or DELETE.
+// Use this hook for calling @hey-api (fetch) generated endpoints for POST, PUT, PATCH or DELETE.
 // Use the useActionQuery hook for GET or SEARCH endpoints
 // Supports automatic OrganizationId population for isTenanted requests
-// Supports monitoring of requests for displaying progress indicators
+// Supports monitoring of requests for displaying loading indicators
 // Supports monitoring of expected errors versus unexpected errors
 // Supports monitoring of online/offline status
 export function useActionCommand<TRequestData = any, TResponse = any, ExpectedErrorCode extends string = any>(
   configuration: ActionCommandConfiguration<TRequestData, ExpectedErrorCode, TResponse>
 ): ActionResult<TRequestData, ExpectedErrorCode, TResponse> {
+  const { t: translate } = useTranslation();
   const { request, passThroughErrors, onSuccess, invalidateCacheKeys } = configuration;
 
   const queryClient = useQueryClient();
@@ -58,46 +52,33 @@ export function useActionCommand<TRequestData = any, TResponse = any, ExpectedEr
     mutationFn: async (requestData) => {
       isOnline = offlineService && offlineService.status === 'online';
       if (isOnline) {
-        try {
-          let res = await request(requestData);
-
-          /* @hey-api/client-axios may return an AxiosError instead of throw the error
-          See: https://github.com/hey-api/openapi-ts/blob/main/examples/openapi-ts-axios/src/client/client/client.gen.ts#L94-L106
-           */
-          if (res.status === undefined || res.status >= 400) {
-            if (axios.isAxiosError(res)) {
-              // noinspection ExceptionCaughtLocallyJS
-              throw res as AxiosError<unknown, any> & { error: undefined };
-            }
-          }
-
-          return await (res.data ?? ({} as TResponse));
-        } catch (error) {
-          throw error;
-        }
+        return await executeRequest(request, requestData);
       } else {
         recorder.trace('ActionCommand: Cannot execute command when browser is offline', SeverityLevel.Warning);
-        throw new Error('Cannot execute command action when browser is offline');
+        throw new Error(translate('actions.errors.offline'));
       }
     },
-    onSuccess: (response: TResponse, _requestData: TRequestData) => {
+    onSuccess: (apiResponse: ApiResponse<TResponse>, requestData: TRequestData) => {
       recorder.traceDebug('ActionCommand: Mutation returned success');
       clearErrors();
       if (invalidateCacheKeys) {
-        recorder.traceDebug('ActionCommand: clearing cache keys', { invalidateCacheKeys });
+        recorder.traceDebug('ActionCommand: clearing cache keys: {Keys}', { invalidateCacheKeys });
         queryClient.invalidateQueries({
           queryKey: invalidateCacheKeys,
           exact: false // we want to support wildcards
         });
       }
+
       if (onSuccess) {
-        onSuccess(response);
+        onSuccess(
+          requestData,
+          apiResponse.data ?? ({} as TResponse),
+          apiResponse.response.status,
+          apiResponse.response.headers
+        );
       }
     },
-    onError: (error) => {
-      recorder.traceDebug('ActionCommand: Command returned error', { error });
-      handleError(error);
-    },
+    onError: (error) => handleRequestError(error, handleError),
     throwOnError: (_error: Error) => false,
     retry: false
   });
@@ -105,7 +86,16 @@ export function useActionCommand<TRequestData = any, TResponse = any, ExpectedEr
   const executeCallback = useCallback(
     (
       requestData?: TRequestData,
-      { onSuccess }: { onSuccess?: (params: { requestData?: TRequestData; response: TResponse }) => void } = {}
+      {
+        onSuccess
+      }: {
+        onSuccess?: (params: {
+          requestData?: TRequestData;
+          response: TResponse;
+          statusCode: number;
+          headers: Headers;
+        }) => void;
+      } = {}
     ) => {
       let submittedRequestData: TRequestData = modifyRequestData(requestData, configuration.isTenanted);
 
@@ -113,9 +103,14 @@ export function useActionCommand<TRequestData = any, TResponse = any, ExpectedEr
         submittedRequestData
       });
       mutate(submittedRequestData, {
-        onSuccess: (response, requestData) => {
+        onSuccess: (apiResponse, requestData) => {
           if (onSuccess) {
-            onSuccess({ requestData, response });
+            onSuccess({
+              requestData,
+              response: apiResponse.data ?? ({} as TResponse),
+              statusCode: apiResponse.response.status,
+              headers: apiResponse.response.headers
+            });
           }
         }
       });
@@ -127,7 +122,7 @@ export function useActionCommand<TRequestData = any, TResponse = any, ExpectedEr
   const isCompleted = isPending ? undefined : isSuccess ? true : isError ? false : undefined;
   return {
     execute: executeCallback,
-    lastSuccessResponse: response,
+    lastSuccessResponse: response?.data,
     isSuccess: isCompleted,
     lastExpectedError: expectedError,
     lastUnexpectedError: unexpectedError,
