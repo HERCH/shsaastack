@@ -67,7 +67,10 @@ internal static class InProcessInMemDataStoreExtensions
             }
         }
 
-        entity.LastPersistedAtUtc = DateTime.UtcNow;
+        if (entity.Properties.ContainsKey(nameof(CommandEntity.LastPersistedAtUtc)))
+        {
+            entity.LastPersistedAtUtc = DateTime.UtcNow;
+        }
 
         return entity.Properties;
     }

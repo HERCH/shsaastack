@@ -159,47 +159,53 @@ public static class StoreExtensions
     /// <summary>
     ///     Returns the default ordering field for the specified <see cref="query" />.
     ///     Order of precedence:
-    ///     1. <see cref="QueryAny.ResultOptions.OrderBy" />
-    ///     2. If selected in query, <see cref="Infrastructure.Persistence.Interfaces.PersistedEntity.LastPersistedAtUtc" />
-    ///     3. If selected in query, <see cref="Infrastructure.Persistence.Interfaces.PersistedEntity.Id" />
-    ///     4. First of the
-    ///     <see
-    ///         cref="QueryAny.QueryClause{TPrimaryEntity}.Select{TValue}(System.Linq.Expressions.Expression{System.Func{TPrimaryEntity,TValue}})" />
+    ///     1. <see cref="QueryAny.ResultOptions.OrderBy" />, but must exist in the metadata
+    ///     2. If we have an override, and it exists in the metadata
+    ///     3. The first selected field, if we have any
+    ///     4. Else, <see cref="PersistedEntity.LastPersistedAtUtc" /> if exists in the metadata
+    ///     5. Else, <see cref="PersistedEntity.Id" /> if exists in the metadata
+    ///     6. Else, the last property of the <see cref="TQueryableEntity" />
+    ///     (likely not being the <see cref="PersistedEntity.LastPersistedAtUtc" /> or <see cref="PersistedEntity.Id" />)
     /// </summary>
     public static string GetDefaultOrdering<TQueryableEntity>(this QueryClause<TQueryableEntity> query,
         PersistedEntityMetadata metadata)
         where TQueryableEntity : IQueryableEntity
     {
         var by = query.ResultOptions.OrderBy.By;
-        if (by.HasNoValue())
+        if (by.HasValue())
         {
-            var orderingFieldOverride = metadata.GetDefaultOrderingFieldOverride();
-            by = orderingFieldOverride.HasValue()
-                ? orderingFieldOverride
-                : DefaultOrderingFieldName;
+            if (metadata.HasType(by))
+            {
+                return by;
+            }
+        }
+
+        var orderingFieldOverride = metadata.GetDefaultOrderingFieldOverride();
+        if (orderingFieldOverride.HasValue())
+        {
+            if (metadata.HasType(orderingFieldOverride))
+            {
+                return orderingFieldOverride;
+            }
         }
 
         var selectedFields = GetAllSelectedFields(query);
         if (selectedFields.Any())
         {
-            if (selectedFields.Contains(by))
-            {
-                return by;
-            }
-
-            return selectedFields.Contains(BackupOrderingPropertyName)
-                ? BackupOrderingPropertyName
-                : Enumerable.First(selectedFields);
+            return selectedFields.First();
         }
 
-        if (HasProperty<TQueryableEntity>(by))
+        if (metadata.HasType(DefaultOrderingFieldName))
         {
-            return by;
+            return DefaultOrderingFieldName;
         }
 
-        return HasProperty<TQueryableEntity>(BackupOrderingPropertyName)
-            ? BackupOrderingPropertyName
-            : FirstProperty<TQueryableEntity>();
+        if (metadata.HasType(BackupOrderingPropertyName))
+        {
+            return BackupOrderingPropertyName;
+        }
+
+        return FirstProperty<TQueryableEntity>();
     }
 
     /// <summary>
@@ -344,13 +350,6 @@ public static class StoreExtensions
     {
         return entityProperties.Exists()
                && entityProperties.ContainsKey(propertyName);
-    }
-
-    private static bool HasProperty<TQueryableEntity>(string propertyName)
-        where TQueryableEntity : IQueryableEntity
-    {
-        var metadata = PersistedEntityMetadata.FromType<TQueryableEntity>();
-        return metadata.HasType(propertyName);
     }
 
     private static string FirstProperty<TQueryableEntity>()

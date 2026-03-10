@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { QueryClientDefaultCacheTimeInMs } from '../providers/AppProviders.tsx';
 import { useOfflineService } from '../providers/OfflineServiceContext.tsx';
 import { recorder, SeverityLevel } from '../recorder.ts';
 import { ActionResult, ApiResponse, executeRequest, handleRequestError, modifyRequestData } from './Actions.ts';
@@ -22,8 +23,10 @@ export interface ActionQueryConfiguration<
   transform: (result: TResponse) => TTransformedResponse;
   // What kind of known errors are we expecting to handle ourselves
   passThroughErrors?: Record<number, ExpectedErrorCode>;
-  // The cache key to use to store the response
-  cacheKey: readonly unknown[];
+  // The cache keys array to use to store the response
+  cacheKey: readonly unknown[] | ((request: TRequestData) => readonly unknown[]);
+  // An optional TTL (in ms) to override the default cachePeriod
+  cachePeriodMs?: number;
 }
 
 // Use this hook for calling @hey-api (fetch) generated endpoints for GET or SEARCH.
@@ -32,6 +35,7 @@ export interface ActionQueryConfiguration<
 // Supports monitoring of requests for displaying loading indicators
 // Supports monitoring of expected errors versus unexpected errors
 // Supports monitoring of online/offline status
+// Supports caching of responses (using cacheKey)
 export function useActionQuery<
   TRequestData = any,
   TResponse = any,
@@ -41,103 +45,35 @@ export function useActionQuery<
   configuration: ActionQueryConfiguration<TRequestData, ExpectedErrorCode, TResponse, TTransformedResponse>
 ): ActionResult<TRequestData, ExpectedErrorCode, TTransformedResponse> {
   const { t: translate } = useTranslation();
-  const { request, passThroughErrors, cacheKey, transform: onTransform, onSuccess } = configuration;
+  const queryClient = useQueryClient();
+  const { request, passThroughErrors, transform: onTransform, isTenanted, cacheKey, cachePeriodMs } = configuration;
 
   const { onError: handleError, expectedError, unexpectedError, clearErrors } = useApiErrorState(passThroughErrors);
 
   const offlineService = useOfflineService();
-  let isOnline = offlineService && offlineService.status === 'online';
+  const isOnline = offlineService?.status === 'online';
+
+  const requestRef = useRef(request);
+  const onTransformRef = useRef(onTransform);
+  const handleErrorRef = useRef(handleError);
+  const clearErrorsRef = useRef(clearErrors);
+  const cacheKeyRef = useRef(cacheKey);
+  const cachePeriodMsRef = useRef(cachePeriodMs);
+  requestRef.current = request;
+  onTransformRef.current = onTransform;
+  handleErrorRef.current = handleError;
+  clearErrorsRef.current = clearErrors;
+  cacheKeyRef.current = cacheKey;
+  cachePeriodMsRef.current = cachePeriodMs;
 
   const [currentRequestData, setCurrentRequestData] = useState<TRequestData | undefined>();
   const currentRequestDataRef = useRef<TRequestData | undefined>(currentRequestData ?? ({} as TRequestData));
 
-  const {
-    refetch,
-    data: response,
-    isSuccess,
-    isFetching,
-    isPending,
-    isError,
-    error: queryError
-  } = useQuery({
-    enabled: false, // Prevents automatic execution, execute it manually by calling refetch
-    queryKey: cacheKey, // HACK: This cache key is immutable. We cannot use the specific request data values in the key, so we cannot vary the cache by request data
-    queryFn: async () => {
-      isOnline = offlineService && offlineService.status === 'online';
-      if (isOnline) {
-        const requestData = currentRequestDataRef.current ?? ({} as TRequestData);
-        return await executeRequest(request, requestData);
-      } else {
-        recorder.trace('QueryCommand: Cannot execute query when browser is offline', SeverityLevel.Warning);
-        throw new Error(translate('actions.errors.offline'));
-      }
-    },
-    select: useCallback(
-      (apiResponse: ApiResponse<TResponse>): ApiResponse<TTransformedResponse> => {
-        recorder.traceDebug('QueryCommand: Query returned success');
-        if (apiResponse === undefined || apiResponse === null) {
-          recorder.traceDebug('QueryCommand: Query returned no data!');
-          return {
-            data: {} as TTransformedResponse,
-            error: undefined,
-            request: {} as Request,
-            response: { ok: true, status: 200 } as Response
-          } as ApiResponse<TTransformedResponse>;
-        }
-
-        if (apiResponse.error != undefined) {
-          return apiResponse as ApiResponse<TTransformedResponse>;
-        }
-
-        let response: ApiResponse<TTransformedResponse>;
-        if (onTransform) {
-          const transformed = onTransform(apiResponse.data ?? ({} as TResponse));
-
-          response = {
-            data: transformed,
-            error: undefined,
-            request: apiResponse.request,
-            response: apiResponse.response
-          } as ApiResponse<TTransformedResponse>;
-        } else {
-          response = {
-            data: apiResponse.data,
-            error: undefined,
-            request: apiResponse.request,
-            response: apiResponse.response
-          } as ApiResponse<TTransformedResponse>;
-        }
-
-        if (onSuccess) {
-          const requestData = currentRequestDataRef.current ?? ({} as TRequestData);
-          onSuccess(
-            requestData,
-            response.data ?? ({} as TTransformedResponse),
-            response.response.status,
-            response.response.headers
-          );
-        }
-
-        return response;
-      },
-      [onTransform, onSuccess]
-    ),
-    retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchInterval: false,
-    refetchIntervalInBackground: false,
-    throwOnError: (_error: Error, _query) => false
-  });
-
-  useEffect(() => {
-    if (!isError) {
-      clearErrors();
-    } else {
-      handleRequestError(queryError, handleError);
-    }
-  }, [isError, queryError]);
+  const [response, setResponse] = useState<ApiResponse<TTransformedResponse> | undefined>();
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [isFetching, setIsFetching] = useState<boolean>(false);
+  const [isPending, setIsPending] = useState<boolean>(true);
+  const [isError, setIsError] = useState<boolean>(false);
 
   const executeCallback = useCallback(
     (
@@ -153,46 +89,67 @@ export function useActionQuery<
         }) => void;
       } = {}
     ) => {
-      let submittedRequestData: TRequestData = modifyRequestData(requestData, configuration.isTenanted);
+      let submittedRequestData: TRequestData = modifyRequestData(requestData, isTenanted);
       setCurrentRequestData(submittedRequestData);
       currentRequestDataRef.current = submittedRequestData;
 
+      const calculatedCacheKey =
+        typeof cacheKeyRef.current === 'function' ? cacheKeyRef.current(submittedRequestData) : cacheKeyRef.current;
+
       recorder.traceDebug('QueryCommand: Executing query, with request: {Request}', { request: submittedRequestData });
-      refetch({
-        throwOnError: false
-      })
-        .then((result) => {
-          // Make sure we don't call onSuccess if there is an error, given that throwOnError is always false
-          if (result.isError && result.error != undefined) {
-            recorder.traceDebug('QueryCommand: Query returned error: {Error}', { result });
-            return;
-          }
 
-          if (result.data == undefined) {
-            recorder.traceDebug('QueryCommand: Query returned no data!');
-            return;
-          }
+      setIsPending(false);
+      setIsFetching(true);
+      clearErrorsRef.current();
 
-          const apiResponse = result.data as ApiResponse<TTransformedResponse>;
+      queryClient
+        .fetchQuery({
+          queryKey: calculatedCacheKey,
+          queryFn: async () => {
+            if (isOnline) {
+              const requestData = currentRequestDataRef.current ?? ({} as TRequestData);
+              return await executeRequest(requestRef.current, requestData);
+            } else {
+              recorder.trace('QueryCommand: Cannot execute query when browser is offline', SeverityLevel.Warning);
+              throw new Error(translate('actions.errors.offline'));
+            }
+          },
+          retry: false,
+          staleTime: cachePeriodMs ?? QueryClientDefaultCacheTimeInMs
+        })
+        .then((apiResponse: ApiResponse<TResponse>) => {
+          setIsPending(false);
+          setIsFetching(false);
+          setIsSuccess(true);
+          setIsError(false);
+
+          const res = handleResponse<TResponse, TTransformedResponse>(apiResponse, onTransformRef.current);
+          setResponse(res);
+
           if (onSuccess) {
+            const requestData = currentRequestDataRef.current ?? ({} as TRequestData);
             onSuccess({
               requestData,
-              response: apiResponse.data ?? ({} as TTransformedResponse),
-              statusCode: apiResponse.response.status,
-              headers: apiResponse.response.headers
+              response: res.data ?? ({} as TTransformedResponse),
+              statusCode: res.response.status,
+              headers: res.response.headers
             });
           }
+          return res;
         })
         .catch((error) => {
-          // we should never get here, since throwOnError is always set to false
+          setIsPending(false);
+          setIsFetching(false);
+          setIsError(true);
+          setResponse(undefined);
+          handleRequestError(error, handleError);
           recorder.trace('useActionQuery: Failed to refetch query action', SeverityLevel.Warning);
-          throw error;
         });
     },
-    [refetch, configuration.isTenanted]
+    [isTenanted, queryClient, isOnline, translate]
   );
 
-  const isExecuting = (isPending || isFetching) && isError == false && isSuccess == false;
+  const isExecuting = (isPending || isFetching) && !isError && !isSuccess;
   const isCompleted = isPending || isFetching ? undefined : isSuccess ? true : isError ? false : undefined;
   const variables = currentRequestDataRef.current ?? ({} as TRequestData);
   return {
@@ -205,4 +162,42 @@ export function useActionQuery<
     isReady: isOnline,
     lastRequestValues: isOnline ? variables : undefined
   };
+}
+
+function handleResponse<TResponse, TTransformedResponse>(
+  apiResponse: ApiResponse<TResponse>,
+  onTransform?: (result: TResponse) => TTransformedResponse
+): ApiResponse<TTransformedResponse> {
+  recorder.traceDebug('QueryCommand: Query returned success');
+
+  if (apiResponse === undefined || apiResponse === null) {
+    recorder.traceDebug('QueryCommand: Query returned no data!');
+    return {
+      data: {} as TTransformedResponse,
+      error: undefined,
+      request: {} as Request,
+      response: { ok: true, status: 200 } as Response
+    } as ApiResponse<TTransformedResponse>;
+  }
+
+  let res: ApiResponse<TTransformedResponse>;
+  if (onTransform) {
+    const transformed = onTransform(apiResponse.data ?? ({} as TResponse));
+
+    res = {
+      data: transformed,
+      error: undefined,
+      request: apiResponse.request,
+      response: apiResponse.response
+    } as ApiResponse<TTransformedResponse>;
+  } else {
+    res = {
+      data: apiResponse.data,
+      error: undefined,
+      request: apiResponse.request,
+      response: apiResponse.response
+    } as ApiResponse<TTransformedResponse>;
+  }
+
+  return res;
 }

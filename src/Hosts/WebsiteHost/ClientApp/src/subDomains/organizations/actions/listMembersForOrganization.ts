@@ -1,11 +1,12 @@
 import { useActionQuery } from '../../../framework/actions/ActionQuery';
 import {
   listMembersForOrganization,
+  ListMembersForOrganizationData,
   ListMembersForOrganizationResponse,
   OrganizationMember
 } from '../../../framework/api/apiHost1';
-import { EmptyRequest } from '../../../framework/api/EmptyRequest.ts';
 import organizationCacheKeys from './responseCache.ts';
+
 
 export enum ListMembersForOrganizationErrorCodes {
   not_member = 'not_member'
@@ -13,7 +14,7 @@ export enum ListMembersForOrganizationErrorCodes {
 
 export const ListMembersForOrganizationAction = (id: string) =>
   useActionQuery<
-    EmptyRequest,
+    ListMembersForOrganizationData,
     ListMembersForOrganizationResponse,
     OrganizationMember[],
     ListMembersForOrganizationErrorCodes

@@ -2,6 +2,7 @@ import React, { AllHTMLAttributes } from 'react';
 import { createComponentId, toClasses } from '../Components';
 import Icon from '../icon/Icon.tsx';
 
+
 type HTMLInputProps = AllHTMLAttributes<HTMLInputElement>;
 
 export interface CheckboxProps {
@@ -90,7 +91,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
               {labelText}
             </label>
           </div>
-          <div className="mt-1 h-12 flex items-start w-full overflow-hidden">
+          <div className="mt-1 h-6 flex items-start w-full overflow-hidden">
             {errorMessage && (
               <div className="mt-1 pl-1 text-xs text-error break-words" data-testid={`${componentId}_error`}>
                 <Icon className="pr-1" size={12} color="error" symbol="exclamation-circle" />

@@ -61,7 +61,13 @@ public class BookingRepository : IBookingRepository
             return retrieved.Error;
         }
 
-        return retrieved.Value.Value;
+        var booking = retrieved.Value.Value;
+        if (booking.OrganizationId != organizationId)
+        {
+            return Error.EntityNotFound();
+        }
+
+        return booking;
     }
 
     public async Task<Result<BookingRoot, Error>> SaveAsync(BookingRoot booking, bool reload,

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActionResult } from '../../../framework/actions/Actions';
 import { OrganizationOwnership } from '../../../framework/api/apiHost1';
 import { renderWithTestingProviders } from '../../../framework/testing/TestingProviders';
+import { GetOrganizationAction } from '../actions/getOrganization.ts';
 import { TenantRoles } from './Organizations';
 import { OrganizationsManagePage } from './OrganizationsManagePage';
 
@@ -110,11 +111,38 @@ vi.mock('../../endUsers/actions/listAllMemberships', () => ({
 }));
 
 vi.mock('../actions/getOrganization', () => ({
-  GetOrganizationAction: (organizationId: string) => {
-    if (organizationId === 'anorganizationid1') return mockGetOrganizationAction1;
-    if (organizationId === 'anorganizationid2') return mockGetOrganizationAction2;
-    return mockGetOrganizationAction1;
-  },
+  GetOrganizationAction: vi
+    .fn()
+    .mockReturnValueOnce({
+      execute: vi.fn(),
+      isSuccess: true,
+      lastSuccessResponse: {
+        id: 'anorganizationid1',
+        name: 'anorganizationname1',
+        ownership: 'SHARED',
+        avatarUrl: null
+      },
+      lastExpectedError: undefined,
+      lastUnexpectedError: undefined,
+      isExecuting: false,
+      isReady: true,
+      lastRequestValues: undefined
+    })
+    .mockReturnValueOnce({
+      execute: vi.fn(),
+      isSuccess: true,
+      lastSuccessResponse: {
+        id: 'anorganizationid2',
+        name: 'anorganizationname2',
+        ownership: 'PERSONAL',
+        avatarUrl: 'https://example.com/avatar.jpg'
+      },
+      lastExpectedError: undefined,
+      lastUnexpectedError: undefined,
+      isExecuting: false,
+      isReady: true,
+      lastRequestValues: undefined
+    }),
   OrganizationErrorCodes: {
     forbidden: 'forbidden'
   }
@@ -127,6 +155,10 @@ vi.mock('../../endUsers/actions/changeDefaultOrganization', () => ({
 describe('OrganizationsManagePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    vi.mocked(GetOrganizationAction)
+      .mockReturnValueOnce(mockGetOrganizationAction1)
+      .mockReturnValueOnce(mockGetOrganizationAction2);
 
     mockListAllMembershipsAction.isSuccess = true;
     mockListAllMembershipsAction.lastSuccessResponse = mockMemberships;
@@ -187,6 +219,10 @@ describe('OrganizationsManagePage', () => {
 describe('Organization Card', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    vi.mocked(GetOrganizationAction)
+      .mockReturnValueOnce(mockGetOrganizationAction1)
+      .mockReturnValueOnce(mockGetOrganizationAction2);
 
     mockListAllMembershipsAction.isSuccess = true;
     mockListAllMembershipsAction.lastSuccessResponse = mockMemberships;

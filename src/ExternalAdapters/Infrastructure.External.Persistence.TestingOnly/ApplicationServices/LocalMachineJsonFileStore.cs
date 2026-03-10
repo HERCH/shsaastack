@@ -467,7 +467,11 @@ internal static class LocalMachineFileStoreExtensions
         var containerProperties = entity.Properties
             .ToDictionary<KeyValuePair<string, Optional<object>>, string, Optional<string>>(pair => pair.Key,
                 pair => ToFileProperty(pair.Value));
-        containerProperties[nameof(CommandEntity.LastPersistedAtUtc)] = DateTime.UtcNow.ToIso8601();
+
+        if (containerProperties.ContainsKey(nameof(CommandEntity.LastPersistedAtUtc)))
+        {
+            containerProperties[nameof(CommandEntity.LastPersistedAtUtc)] = DateTime.UtcNow.ToIso8601();
+        }
 
         return containerProperties;
     }

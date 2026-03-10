@@ -137,21 +137,69 @@ public class StoreExtensionsSpec
     }
 
     [Fact]
-    public void
-        WhenGetDefaultOrderingForEntityWithoutIdAndNoOrderingSpecifiedAndNoOverride_ThenReturnsLastPersistedAtUtc()
+    public void WhenGetDefaultOrderingForEntityWithoutAnyReadModelsFields_ThenReturnsLastSchemaColumn()
     {
-        var query = Query.From<TestQueryEntityWithoutId>().WhereAll();
-        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithoutId>();
+        var query = Query.From<TestQueryEntityWithoutAnyReadModelFields>().WhereAll();
+        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithoutAnyReadModelFields>();
 
         var result = query.GetDefaultOrdering(metadata);
 
-        result.Should().Be(StoreExtensions.DefaultOrderingFieldName);
+        result.Should().Be(nameof(TestQueryEntityWithoutAnyReadModelFields.AProperty1));
     }
 
     [Fact]
-    public void WhenGetDefaultOrderingForEntityWithoutIdAndNoOrderingSpecifiedWithOverride_ThenReturnsOverriden()
+    public void WhenGetDefaultOrderingForEntityWithOnlyId_ThenReturnsIdColumn()
     {
-        var query = Query.From<TestQueryEntityWithSortDefaultOverride>().WhereAll();
+        var query = Query.From<TestQueryEntityWithIdOnly>().WhereAll();
+        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithIdOnly>();
+
+        var result = query.GetDefaultOrdering(metadata);
+
+        result.Should().Be(nameof(TestQueryEntityWithIdOnly.Id));
+    }
+
+    [Fact]
+    public void WhenGetDefaultOrderingForEntityWithAllReadModelFields_ThenReturnsLastPersistedAtUtcColumn()
+    {
+        var query = Query.From<TestQueryEntityWithReadModelFields>().WhereAll();
+        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithReadModelFields>();
+
+        var result = query.GetDefaultOrdering(metadata);
+
+        result.Should().Be(nameof(TestQueryEntityWithReadModelFields.LastPersistedAtUtc));
+    }    
+    
+    [Fact]
+    public void
+        WhenGetDefaultOrderingForEntityWithoutAnyReadModelFieldsButSelectsAColumn_ThenReturnsFirstSelectedColumn()
+    {
+        var query = Query.From<TestQueryEntityWithoutAnyReadModelFields>()
+            .WhereAll()
+            .Select(x => x.AProperty2);
+        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithoutAnyReadModelFields>();
+
+        var result = query.GetDefaultOrdering(metadata);
+
+        result.Should().Be(nameof(TestQueryEntityWithoutAnyReadModelFields.AProperty2));
+    }
+    
+    [Fact]
+    public void WhenGetDefaultOrderingForEntityWithOverrideButReturnsNull_ThenReturnsLastSchemaColumn()
+    {
+        var query = Query.From<TestQueryEntityWithSortDefaultOverrideNull>()
+            .WhereAll();
+        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithSortDefaultOverrideNull>();
+
+        var result = query.GetDefaultOrdering(metadata);
+
+        result.Should().Be(nameof(TestQueryEntityWithSortDefaultOverrideNull.AProperty));
+    }
+
+    [Fact]
+    public void WhenGetDefaultOrderingForEntityWithOverride_ThenReturnsOverrideColumn()
+    {
+        var query = Query.From<TestQueryEntityWithSortDefaultOverride>()
+            .WhereAll();
         var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithSortDefaultOverride>();
 
         var result = query.GetDefaultOrdering(metadata);
@@ -160,42 +208,29 @@ public class StoreExtensionsSpec
     }
 
     [Fact]
-    public void
-        WhenGetDefaultOrderingForEntityWithoutIdAndNoOrderingSpecifiedAndDefaultsNotSelected_ThenReturnsFirstSelectedField()
+    public void WhenGetDefaultOrderingForEntityWithDefaultOrderButNotInMetadata_ThenReturnsLastSchemaColumn()
     {
-        var query = Query.From<TestQueryEntityWithoutId>()
+        var query = Query.From<TestQueryEntityWithReadModelFields>()
             .WhereAll()
-            .Select(x => x.AProperty);
-        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithoutId>();
+            .OrderBy(x => x.LastPersistedAtUtc);
+        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithoutAnyReadModelFields>();
 
         var result = query.GetDefaultOrdering(metadata);
 
-        result.Should().Be(nameof(TestQueryEntityWithoutId.AProperty));
+        result.Should().Be(nameof(TestQueryEntityWithReadModelFields.AProperty));
     }
 
     [Fact]
-    public void WhenGetDefaultOrderingForEntityWithoutLastPersistedAtUtcAndNoOrderingSpecified_ThenReturnsId()
+    public void WhenGetDefaultOrderingForEntityWithDefaultOrder_ThenReturnsOrderingColumn()
     {
-        var query = Query.From<TestQueryEntityWithId>().WhereAll();
-        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithId>();
-
-        var result = query.GetDefaultOrdering(metadata);
-
-        result.Should().Be(StoreExtensions.BackupOrderingPropertyName);
-    }
-
-    [Fact]
-    public void
-        WhenGetDefaultOrderingForEntityWithoutLastPersistedAtUtcAndNoOrderingSpecifiedAndDefaultsNotSelected_ThenReturnsId()
-    {
-        var query = Query.From<TestQueryEntityWithId>()
+        var query = Query.From<TestQueryEntityWithReadModelFields>()
             .WhereAll()
-            .Select(x => x.AProperty);
-        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithId>();
+            .OrderBy(x => x.AProperty);
+        var metadata = PersistedEntityMetadata.FromType<TestQueryEntityWithReadModelFields>();
 
         var result = query.GetDefaultOrdering(metadata);
 
-        result.Should().Be(nameof(TestQueryEntityWithId.AProperty));
+        result.Should().Be(nameof(TestQueryEntityWithReadModelFields.AProperty));
     }
 
     [Fact]
@@ -273,6 +308,34 @@ public class TestComplexTypeWithOverwrittenToString
 }
 
 [UsedImplicitly]
+public class TestQueryEntityWithoutAnyReadModelFields : IQueryableEntity
+{
+    public string? AProperty1 { get; set; }
+
+    public string? AProperty2 { get; set; }
+}
+
+[UsedImplicitly]
+public class TestQueryEntityWithIdOnly : IQueryableEntity
+{
+    public string? AProperty { get; set; }
+
+    public string? Id { get; set; }
+}
+
+[UsedImplicitly]
+public class TestQueryEntityWithReadModelFields : IQueryableEntity
+{
+    public string? AProperty { get; set; }
+
+    public DateTime? LastPersistedAtUtc { get; set; }
+
+    public bool IsDeleted { get; set; }
+
+    public string? Id { get; set; }
+}
+
+[UsedImplicitly]
 public class TestQueryEntityWithoutId : IQueryableEntity
 {
     public string? AProperty { get; set; }
@@ -299,5 +362,19 @@ public class TestQueryEntityWithSortDefaultOverride : IQueryableEntity
     public static string DefaultOrderingField()
     {
         return nameof(DefaultSortByUtc);
+    }
+}
+
+[UsedImplicitly]
+public class TestQueryEntityWithSortDefaultOverrideNull : IQueryableEntity
+{
+    public string? AProperty { get; set; }
+
+    public DateTime? DefaultSortByUtc { get; set; }
+
+    // ReSharper disable once UnusedMember.Global
+    public static string DefaultOrderingField()
+    {
+        return null!;
     }
 }

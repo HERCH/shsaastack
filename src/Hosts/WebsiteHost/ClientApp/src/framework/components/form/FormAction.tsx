@@ -3,6 +3,7 @@ import { DefaultValues, FieldValues, FormProvider, useForm, UseFormReturn, Valid
 import { zodResolver } from '@hookform/resolvers/zod';
 import z, { ZodType } from 'zod';
 import { ActionResult } from '../../actions/Actions.ts';
+import { recorder } from '../../recorder.ts';
 import Alert from '../alert/Alert.tsx';
 import { createComponentId, toClasses } from '../Components.ts';
 import UnhandledError from '../unhandledError/UnhandledError.tsx';
@@ -11,6 +12,7 @@ import {
   FormActionRequiredFieldsContext,
   FormActionValidationContext
 } from './FormActionContexts.tsx';
+
 
 interface FormActionProps<TRequestData = any, ExpectedErrorCode extends string = any, TResponse = any> {
   className?: string;
@@ -61,7 +63,7 @@ function FormAction<TRequestData = any, ExpectedErrorCode extends string = any, 
   });
   formContext.isSubmitted = validation.formState.isSubmitted;
   const requiredFormFields = validationSchema ? getRequiredFields(validationSchema) : [];
-  const baseClasses = 'bg-white dark:bg-neutral-800 p-2 rounded-lg transition-all';
+  const baseClasses = 'bg-white dark:bg-neutral-900 p-2 rounded-lg transition-all';
   const classes = toClasses([baseClasses, className]);
   const isFormDisabled =
     disabled ||
@@ -78,21 +80,31 @@ function FormAction<TRequestData = any, ExpectedErrorCode extends string = any, 
       <FormActionRequiredFieldsContext.Provider value={requiredFormFields}>
         <FormActionValidationContext.Provider value={validatesWhen}>
           <FormProvider {...validation}>
-            <div className="container w-4/5 m:w-11/12 mx-auto">
+            <div className="container w-4/5 m:w-11/12">
               <div className="flex items-center">
                 <fieldset className="w-full" disabled={isFormDisabled}>
                   <form
                     className={`space-y-1 ${classes}`}
                     data-testid={componentId}
                     name={componentId}
-                    onSubmit={validation.handleSubmit((requestData) =>
-                      action.execute(requestData, {
-                        onSuccess: (successParams) => {
-                          if (onSuccess) {
-                            onSuccess({ ...successParams, formMethods: validation });
+                    onSubmit={validation.handleSubmit(
+                      (requestData) =>
+                        action.execute(requestData, {
+                          onSuccess: (successParams) => {
+                            if (onSuccess) {
+                              onSuccess({ ...successParams, formMethods: validation });
+                            }
                           }
+                        }),
+                      (errors) => {
+                        if (window.isTestingOnly) {
+                          const fields: string[] = [];
+                          Object.keys(errors).forEach((fieldName) =>
+                            fields.push(`  - id:'${fieldName}': ${errors[fieldName]?.message}`)
+                          );
+                          recorder.traceDebug('Form validation failed for the following fields:', { fields });
                         }
-                      })
+                      }
                     )}
                     noValidate={true}
                   >

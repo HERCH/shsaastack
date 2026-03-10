@@ -1,11 +1,13 @@
 const oAuth2CacheKeys = {
-  all: ['clients'] as const,
+  all: ['oauth2'] as const,
   client: {
-    query: (clientId: string) => [`clients.${clientId}`] as const,
-    mutate: (clientId: string) => [...oAuth2CacheKeys.all, `clients.${clientId}`] as const,
+    all: ['oauth2', 'clients'] as const,
+    query: (clientId: string) => [...oAuth2CacheKeys.client.all, clientId] as const,
+    mutate: (clientId: string) => [...oAuth2CacheKeys.client.all, clientId] as const,
     consent: {
-      query: (clientId: string) => [`clients.${clientId}.consent`] as const,
-      mutate: (clientId: string) => [`clients.${clientId}.consent`] as const
+      all: ['oauth2', 'clients', 'consents'] as const,
+      query: (clientId: string) => [...oAuth2CacheKeys.client.consent.all, clientId] as const,
+      mutate: (clientId: string) => [...oAuth2CacheKeys.client.consent.all, clientId] as const
     }
   }
 };

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import Tag from './Tag';
 
+
 const meta: Meta<typeof Tag> = {
   title: 'Components/Tag',
   component: Tag,
@@ -16,6 +17,7 @@ const meta: Meta<typeof Tag> = {
         'brand-secondary',
         'success',
         'warning',
+        'error',
         'info',
         'red',
         'orange',
@@ -87,6 +89,7 @@ export const AllColors: Story = {
       <Tag label="Brand-Secondary" color="brand-secondary" />
       <Tag label="Success" color="success" />
       <Tag label="Warning" color="warning" />
+      <Tag label="Error" color="error" />
       <Tag label="Info" color="info" />
       <Tag label="Red" color="red" />
       <Tag label="Orange" color="orange" />

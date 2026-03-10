@@ -1,8 +1,8 @@
 const userProfileCacheKeys = {
   all: ['userProfiles'] as const,
-  me: ['userProfiles.me'] as const,
+  me: ['userProfiles', 'me'] as const,
   profile: {
-    mutate: (userId: string) => [...userProfileCacheKeys.all, `userProfiles.${userId}`] as const
+    mutate: (userId: string) => [...userProfileCacheKeys.all, userId] as const
   }
 };
 

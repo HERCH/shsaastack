@@ -181,6 +181,15 @@ public class OrganizationRootSpec
     }
 
     [Fact]
+    public void WhenUnInviteMemberAndOwner_ThenReturnsError()
+    {
+        var result = _org.UnInviteMember("aremoverid".ToId(), Roles.Create(TenantRoles.Owner).Value,
+            "acreatorid".ToId());
+
+        result.Should().BeError(ErrorCode.RuleViolation, Resources.OrganizationRoot_UnInviteMember_Creator);
+    }
+
+    [Fact]
     public void WhenUnInviteMemberAndBillingSubscriber_ThenReturnsError()
     {
         _org.SubscribeBilling("asubscriptionid".ToId(), "asubscriberid".ToId());
@@ -678,20 +687,27 @@ public class OrganizationRootSpec
 
         result.Should().BeError(ErrorCode.Validation,
             Resources.OrganizationRoot_MissingCreatorEmailAddress);
+        _emailDomainService.Verify(eds =>
+                eds.EnsureUniqueAsync(It.IsAny<string>(), It.IsAny<Identifier>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task WhenRegisterSharedAsyncAndDisallowedEmailDomain_ThenReturnsError()
+    public async Task WhenRegisterSharedAsyncWithPersonalEmail_ThenSucceedsWithoutEmailDomain()
     {
         var result =
-            await _org.RegisterSharedAsync(EmailAddress.Create("auser@gmail.com").Value, CancellationToken.None);
+            await _org.RegisterSharedAsync(EmailAddress.Create("auser@personal.com").Value, CancellationToken.None);
 
-        result.Should().BeError(ErrorCode.PreconditionViolation,
-            Resources.OrganizationRoot_RegisterShared_DisallowedEmailDomain.Format("gmail.com"));
+        result.Should().BeSuccess();
+        _org.EmailDomain.Should().BeNone();
+        _org.Events.Last().Should().BeOfType<Created>();
+        _emailDomainService.Verify(eds =>
+                eds.EnsureUniqueAsync(It.IsAny<string>(), It.IsAny<Identifier>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task WhenRegisterSharedAsyncAndDuplicateEmailDomain_ThenReturnsError()
+    public async Task WhenRegisterSharedAsyncWithCompanyEmailAndDuplicateEmailDomain_ThenReturnsError()
     {
         _emailDomainService.Setup(eds =>
                 eds.EnsureUniqueAsync(It.IsAny<string>(), It.IsAny<Identifier>(), It.IsAny<CancellationToken>()))
@@ -702,10 +718,12 @@ public class OrganizationRootSpec
 
         result.Should().BeError(ErrorCode.EntityExists,
             Resources.OrganizationRoot_RegisterShared_EmailDomainReserved.Format("company.com"));
+        _emailDomainService.Verify(eds =>
+            eds.EnsureUniqueAsync("company.com", _org.Id, It.IsAny<CancellationToken>()));
     }
 
     [Fact]
-    public async Task WhenRegisterSharedAsync_ThenAssigns()
+    public async Task WhenRegisterSharedAsyncWithCompanyEmail_ThenAssigns()
     {
         var result =
             await _org.RegisterSharedAsync(EmailAddress.Create("auser@company.com").Value, CancellationToken.None);
@@ -714,5 +732,7 @@ public class OrganizationRootSpec
         _org.EmailDomain.Should().Be("company.com");
         _org.Events.Count.Should().Be(2);
         _org.Events.Last().Should().BeOfType<SettingCreated>();
+        _emailDomainService.Verify(eds =>
+            eds.EnsureUniqueAsync("company.com", _org.Id, It.IsAny<CancellationToken>()));
     }
 }

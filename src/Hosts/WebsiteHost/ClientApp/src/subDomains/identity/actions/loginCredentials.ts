@@ -1,6 +1,10 @@
 import { useActionCommand } from '../../../framework/actions/ActionCommand.ts';
 import { authenticate, AuthenticateRequest, AuthenticateResponse } from '../../../framework/api/websiteHost';
 import { LocalStorageKeys, RoutePaths } from '../../../framework/constants.ts';
+import endUserCacheKeys from '../../endUsers/actions/responseCache.ts';
+import organizationCacheKeys from '../../organizations/actions/responseCache.ts';
+import userProfileCacheKeys from '../../userProfiles/actions/responseCache.ts';
+
 
 export enum LoginCredentialsErrors {
   account_locked = 'account_locked',
@@ -34,5 +38,6 @@ export const LoginCredentialsAction = () =>
       }
 
       window.location.replace(RoutePaths.Home); //so that we reload index.html and pick up the changed auth cookies, and return to home page
-    }
+    },
+    invalidateCacheKeys: [...userProfileCacheKeys.all, ...endUserCacheKeys.all, ...organizationCacheKeys.all]
   });

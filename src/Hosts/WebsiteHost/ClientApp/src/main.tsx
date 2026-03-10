@@ -3,10 +3,12 @@ import './framework/i18n';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './main.css';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { BrowserRouter } from 'react-router-dom';
 import { initializeApiClient } from './framework/api';
 import { AppProviders } from './framework/providers/AppProviders.tsx';
 import { recorder } from './framework/recorder.ts';
+
 
 initializeApiClient();
 
@@ -21,6 +23,7 @@ root.render(
     <React.StrictMode>
       <BrowserRouter>
         <App />
+        <ReactQueryDevtools initialIsOpen={false} />
       </BrowserRouter>
     </React.StrictMode>
   </AppProviders>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   ChangeDefaultOrganizationRequest,
+  GetOrganizationData,
   Membership,
   Organization,
   OrganizationOwnership,
@@ -20,6 +21,7 @@ import { ChangeDefaultOrganizationAction } from '../../endUsers/actions/changeDe
 import { ListAllMembershipsAction } from '../../endUsers/actions/listAllMemberships.ts';
 import { GetOrganizationAction, OrganizationErrorCodes } from '../actions/getOrganization.ts';
 import { formatFeatureName, formatRoleName, TenantRoles } from './Organizations.ts';
+
 
 export const OrganizationsManagePage: React.FC = () => {
   const { t: translate } = useTranslation();
@@ -70,11 +72,14 @@ const OrganizationCard: React.FC<{
 }> = ({ membership, onMembershipChange }) => {
   const { t: translate } = useTranslation();
   const changeDefaultOrganization = ChangeDefaultOrganizationAction();
-  const getOrganization = GetOrganizationAction(membership.organizationId);
+  const getOrganization = GetOrganizationAction();
   const getOrganizationTrigger = useRef<PageActionRef<EmptyRequest>>(null);
   const organization = getOrganization.lastSuccessResponse ?? ({} as Organization);
 
-  useEffect(() => getOrganizationTrigger.current?.execute(), []);
+  useEffect(
+    () => getOrganizationTrigger.current?.execute({ path: { Id: membership.organizationId } } as GetOrganizationData),
+    [membership.organizationId]
+  );
 
   const isPersonal = organization?.ownership === OrganizationOwnership.PERSONAL;
   const isShared = organization?.ownership === OrganizationOwnership.SHARED;

@@ -2,6 +2,7 @@ import React from 'react';
 import { createComponentId, toClasses } from '../Components.ts';
 import { TailwindColorName } from '../typography/Tailwind.ts';
 
+
 export interface TagProps {
   className?: string;
   id?: string;
@@ -16,6 +17,7 @@ const TagColors = {
   'brand-secondary': 'bg-brand-secondary text-white dark:bg-brand-secondary dark:text-brand-secondary-300',
   success: 'bg-success text-white dark:bg-success dark:text-success-300',
   warning: 'bg-warning text-white dark:bg-warning dark:text-warning-300',
+  error: 'bg-error text-white dark:bg-error dark:text-error-300',
   info: 'bg-info text-white dark:bg-info dark:text-info-300',
   red: 'bg-red-600 text-white dark:bg-red-400 dark:text-neutral-600',
   orange: 'bg-orange-600 text-white dark:bg-orange-400 dark:text-neutral-600',

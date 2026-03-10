@@ -1,7 +1,11 @@
 import { useActionCommand } from '../../../framework/actions/ActionCommand.ts';
 import { authenticate, AuthenticateRequest, AuthenticateResponse } from '../../../framework/api/websiteHost';
 import { RoutePaths } from '../../../framework/constants.ts';
+import endUserCacheKeys from '../../endUsers/actions/responseCache.ts';
+import organizationCacheKeys from '../../organizations/actions/responseCache.ts';
+import userProfileCacheKeys from '../../userProfiles/actions/responseCache.ts';
 import { cleanupStoredPKCEParameters } from '../utils/OAuth2Security.ts';
+
 
 export enum LoginSsoErrors {
   unauthorized = 'unauthorized'
@@ -23,5 +27,6 @@ export const LoginSsoAction = () =>
       cleanupStoredPKCEParameters();
 
       window.location.replace(RoutePaths.Home); //so that we reload index.html and pick up the changed auth cookies, and return to home page
-    }
+    },
+    invalidateCacheKeys: [...userProfileCacheKeys.all, ...endUserCacheKeys.all, ...organizationCacheKeys.all]
   });

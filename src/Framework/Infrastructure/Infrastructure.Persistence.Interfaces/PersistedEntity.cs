@@ -71,6 +71,13 @@ public abstract class PersistedEntity
         }
     }
 
+#if TESTINGONLY
+    public void TestingOnly_Remove(string propertyName)
+    {
+        PropertyValues.TestingOnly_Remove(propertyName);
+    }
+#endif
+
     public Optional<Type> GetPropertyType(string propertyName)
     {
         return Metadata.GetPropertyType(propertyName);

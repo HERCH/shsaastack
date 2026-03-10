@@ -8,7 +8,7 @@ export interface FormSelectProps {
   className?: string;
   id: string;
   name: string;
-  options: SelectOption[];
+  options: SelectOption[] | ((dependencies: any) => SelectOption[]);
   label?: string;
   placeholder?: string;
   dependencies?: string[];
@@ -21,18 +21,23 @@ export interface FormSelectProps {
 // This select triggers validation when the user interacts with the select, based on the ancestor Form's validatesWhen.
 // This select sets its default value based on the ancestor Form's defaultValues.
 // This select displays a validation error message, based on its own validation state.
+// This select supports changing its options dynamically based on dependencies.
 const FormSelect = ({ className, id, name, options, label, placeholder, dependencies = [] }: FormSelectProps) => {
-  const { validationError, register } = useFormValidation(name);
+  const { validationError, register, watch } = useFormValidation(name);
   const requiredFormFields = useContext(FormActionRequiredFieldsContext);
   const isRequired = requiredFormFields.includes(name);
   const baseClasses = '';
   const classes = toClasses([baseClasses, className]);
   const componentId = createComponentId('form_select', id);
+
+  const deps = dependencies.length > 0 ? watch?.(dependencies) : undefined;
+  const resolvedOptions = typeof options === 'function' ? options(deps) : options;
+
   return (
     <Select
       className={classes}
       id={componentId}
-      options={options}
+      options={resolvedOptions}
       label={label}
       required={isRequired}
       placeholder={placeholder}

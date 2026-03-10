@@ -47,6 +47,13 @@ public class HydrationProperties : ReadOnlyDictionary<string, Optional<object>>
         AddOrUpdate(name, value);
     }
 
+#if TESTINGONLY
+    public void TestingOnly_Remove(string name)
+    {
+        Dictionary.Remove(name);
+    }
+#endif
+
     public void AddOrUpdate<TValue>(string name, Optional<TValue> value)
     {
         var optional = new Optional<object>((object?)value.ValueOrDefault);

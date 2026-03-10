@@ -1,24 +1,23 @@
 import { useActionQuery } from '../../../framework/actions/ActionQuery';
-import { getOrganization, GetOrganizationResponse, Organization } from '../../../framework/api/apiHost1';
-import { EmptyRequest } from '../../../framework/api/EmptyRequest.ts';
+import {
+  getOrganization,
+  GetOrganizationData,
+  GetOrganizationResponse,
+  Organization
+} from '../../../framework/api/apiHost1';
 import organizationCacheKeys from './responseCache';
+
 
 export enum OrganizationErrorCodes {
   forbidden = 'forbidden'
 }
 
-export const GetOrganizationAction = (id: string) =>
-  useActionQuery<EmptyRequest, GetOrganizationResponse, Organization, OrganizationErrorCodes>({
-    request: (request) =>
-      getOrganization({
-        ...request,
-        path: {
-          Id: id
-        }
-      }),
+export const GetOrganizationAction = () =>
+  useActionQuery<GetOrganizationData, GetOrganizationResponse, Organization, OrganizationErrorCodes>({
+    request: (request) => getOrganization(request),
     transform: (res) => res.organization,
     passThroughErrors: {
       403: OrganizationErrorCodes.forbidden
     },
-    cacheKey: organizationCacheKeys.organization.query(id)
+    cacheKey: (request) => organizationCacheKeys.organization.query(request.path.Id)
   });
